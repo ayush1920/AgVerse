@@ -17,6 +17,10 @@
 
 AgVerse allows you to run multiple concurrent instances of Antigravity, each logged into an independent Google account, without session conflicts, credential overwrites, or forced logouts. It also bridges authentication and real-time quota telemetry across external desktop monitoring ecosystems—including **Rainmeter** and **TrafficMonitor**.
 
+<p align="center">
+  <img src="screenshot.png" width="460" alt="AgVerse Main Interface" />
+</p>
+
 ---
 
 ## 🚀 Downloads & Installers
