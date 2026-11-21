@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MultiGravity
 {
@@ -118,6 +119,89 @@ namespace MultiGravity
                 File.WriteAllText(ConfigFile, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
+        }
+
+        public static bool GetVerboseModeConfig()
+        {
+            try
+            {
+                if (File.Exists(ConfigFile))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
+                    if (doc.RootElement.TryGetProperty("verbose_mode", out var v))
+                    {
+                        return v.GetBoolean();
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public static void SetVerboseModeConfig(bool verbose)
+        {
+            try
+            {
+                var dict = new Dictionary<string, object>();
+                if (File.Exists(ConfigFile))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            dict[prop.Name] = prop.Value.Clone();
+                        }
+                    }
+                    catch { }
+                }
+                dict["verbose_mode"] = verbose;
+                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
+        public static void SetVerboseMode(string profilePath, bool verbose)
+        {
+            try
+            {
+                string configDir = Path.Combine(profilePath, "home", ".gemini", "config");
+                Directory.CreateDirectory(configDir);
+                string cfgFile = Path.Combine(configDir, "config.json");
+
+                JsonObject root;
+                if (File.Exists(cfgFile))
+                {
+                    string raw = File.ReadAllText(cfgFile);
+                    root = JsonNode.Parse(raw)?.AsObject() ?? new JsonObject();
+                }
+                else
+                {
+                    root = new JsonObject();
+                }
+
+                if (!root.ContainsKey("userSettings") || root["userSettings"] is not JsonObject)
+                {
+                    root["userSettings"] = new JsonObject();
+                }
+
+                var userSettings = root["userSettings"]!.AsObject();
+                userSettings["verboseConversationSteps"] = verbose;
+
+                File.WriteAllText(cfgFile, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
+        public static void SetVerboseModeForAllProfiles(bool verbose)
+        {
+            if (Directory.Exists(ProfilesDir))
+            {
+                foreach (string prof in Directory.GetDirectories(ProfilesDir))
+                {
+                    SetVerboseMode(prof, verbose);
+                }
+            }
         }
         public static string RealUserHome { get; } = GetRealUserHome();
         public static string MasterProjectsDir { get; } = Path.Combine(RealUserHome, ".gemini", "config", "projects");
@@ -598,6 +682,11 @@ namespace MultiGravity
             EnsureAntigravityJunction(profilePath);
             SaveExclusions(profilePath, Array.Empty<string>());
             SyncProfileProjects(profilePath);
+
+            if (GetVerboseModeConfig())
+            {
+                SetVerboseMode(profilePath, true);
+            }
         }
 
         public static void DeleteProfile(string name)
@@ -621,6 +710,7 @@ namespace MultiGravity
             // Sync all projects (accounting for exclusions) and ensure junctions before launch
             SyncProfileProjects(profilePath);
             EnsureAntigravityJunction(profilePath);
+            SetVerboseMode(profilePath, GetVerboseModeConfig());
 
             var psi = new ProcessStartInfo
             {
@@ -646,6 +736,7 @@ namespace MultiGravity
 
             SyncProfileProjects(profilePath);
             EnsureAntigravityJunction(profilePath);
+            SetVerboseMode(profilePath, GetVerboseModeConfig());
 
             // 1. Create launch.vbs runner script as fallback
             string runnerScript = Path.Combine(profilePath, "launch.vbs");

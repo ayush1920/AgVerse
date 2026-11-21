@@ -25,6 +25,7 @@ namespace MultiGravity
         private Button _btnRefreshToken = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
+        private CheckBox _chkVerbose = null!;
         private readonly ToolTip _toolTip = new();
 
         public MainForm()
@@ -36,7 +37,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Size = new Size(580, 660);
+            Size = new Size(580, 690);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -174,7 +175,18 @@ namespace MultiGravity
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 5, ColumnCount = 1 };
+            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 6, ColumnCount = 1 };
+
+            _chkVerbose = new CheckBox
+            {
+                Text = Localization.T("chk_verbose"),
+                AutoSize = true,
+                Checked = AntigravityCore.GetVerboseModeConfig(),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                Margin = new Padding(2, 2, 0, 6)
+            };
+            _chkVerbose.CheckedChanged += OnVerboseModeChanged;
+
             _btnLaunch = new Button
             {
                 Text = Localization.T("btn_abrir"),
@@ -227,11 +239,12 @@ namespace MultiGravity
             };
             _btnDelete.Click += OnDeleteProfileClick;
 
-            btnPanel.Controls.Add(_btnLaunch, 0, 0);
-            btnPanel.Controls.Add(_btnManageProjects, 0, 1);
-            btnPanel.Controls.Add(_btnRefreshToken, 0, 2);
-            btnPanel.Controls.Add(_btnShortcut, 0, 3);
-            btnPanel.Controls.Add(_btnDelete, 0, 4);
+            btnPanel.Controls.Add(_chkVerbose, 0, 0);
+            btnPanel.Controls.Add(_btnLaunch, 0, 1);
+            btnPanel.Controls.Add(_btnManageProjects, 0, 2);
+            btnPanel.Controls.Add(_btnRefreshToken, 0, 3);
+            btnPanel.Controls.Add(_btnShortcut, 0, 4);
+            btnPanel.Controls.Add(_btnDelete, 0, 5);
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
@@ -348,11 +361,19 @@ namespace MultiGravity
             _btnAddProfile.Text = Localization.T("btn_add");
             _lblInfoShared.Text = Localization.T("info_default_shared");
             _grpProfiles.Text = Localization.T("frame_perfis");
+            _chkVerbose.Text = Localization.T("chk_verbose");
             _btnLaunch.Text = Localization.T("btn_abrir");
             _btnManageProjects.Text = "📂 " + Localization.T("btn_proj");
             _btnRefreshToken.Text = "🔄 " + Localization.T("btn_refresh_token");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
+        }
+
+        private void OnVerboseModeChanged(object? sender, EventArgs e)
+        {
+            bool isVerbose = _chkVerbose.Checked;
+            AntigravityCore.SetVerboseModeConfig(isVerbose);
+            AntigravityCore.SetVerboseModeForAllProfiles(isVerbose);
         }
 
         private void OnAddProfileClick(object? sender, EventArgs e)
