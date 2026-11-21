@@ -13,10 +13,25 @@ namespace AgVerse
 
     public static class AntigravityCore
     {
+        public static string RealUserHome { get; } = GetRealUserHome();
+        public static string MasterProjectsDir { get; } = Path.Combine(RealUserHome, ".gemini", "config", "projects");
+        public static string MasterAntigravityDir { get; } = Path.Combine(RealUserHome, ".gemini", "antigravity");
         public static string BaseDir { get; } = DetermineBaseDir();
         public static string ConfigFile { get; } = Path.Combine(BaseDir, "config.json");
         public static string ProfilesDir { get; private set; } = DetermineProfilesDir();
         public static string ArchivedProjectsDir => Path.Combine(BaseDir, "archived_projects");
+
+        public static string GetRealUserHome()
+        {
+            string username = Environment.UserName;
+            if (!string.IsNullOrEmpty(username))
+            {
+                string sysDrive = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+                string p = Path.Combine(sysDrive, "Users", username);
+                if (Directory.Exists(p)) return p;
+            }
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
 
         private static string DetermineBaseDir()
         {
@@ -45,14 +60,37 @@ namespace AgVerse
             }
             catch { }
 
-            // 2. Check local profiles folder in BaseDir (only if it has existing profile folders)
+            // 2. Check pointer files in AntigravityQuota vault directory
+            try
+            {
+                string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string[] ptrs = [
+                    Path.Combine(localApp, "AntigravityQuota", "agverse_profiles.txt"),
+                    Path.Combine(localApp, "AntigravityQuota", "multigravity_profiles.txt")
+                ];
+                foreach (var ptr in ptrs)
+                {
+                    if (File.Exists(ptr))
+                    {
+                        string saved = File.ReadAllText(ptr).Trim();
+                        if (Directory.Exists(saved) && Directory.GetDirectories(saved).Length > 0)
+                        {
+                            SaveProfilesDirConfig(saved);
+                            return saved;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Check local profiles folder in BaseDir (only if it has existing profile folders)
             string localProfiles = Path.Combine(BaseDir, "profiles");
             if (Directory.Exists(localProfiles) && Directory.GetDirectories(localProfiles).Length > 0)
             {
                 return localProfiles;
             }
 
-            // 3. Check if running inside an active profile (e.g. USERPROFILE contains \profiles\<name>\home)
+            // 4. Check if running inside an active profile (e.g. USERPROFILE contains \profiles\<name>\home)
             string envProfile = Environment.GetEnvironmentVariable("USERPROFILE") ?? "";
             int idx = envProfile.IndexOf(@"\profiles\", StringComparison.OrdinalIgnoreCase);
             if (idx > 0)
@@ -65,8 +103,8 @@ namespace AgVerse
                 }
             }
 
-            // 4. Auto-detect existing AgVerse profiles on the system
-            string userProfile = RealUserHome;
+            // 5. Auto-detect existing AgVerse profiles on the system
+            string userProfile = RealUserHome ?? GetRealUserHome();
             string[] commonLocations = new[]
             {
                 Path.Combine(userProfile, "Downloads", "Programs", "profiles"),
@@ -86,7 +124,17 @@ namespace AgVerse
                 }
             }
 
-            // Default fallback to local folder
+            // 6. Default fallback
+            // If installed in Program Files or AppData\Local\Programs, put default profiles in user's home
+            if (BaseDir.Contains("Program Files", StringComparison.OrdinalIgnoreCase) ||
+                BaseDir.Contains("Programs", StringComparison.OrdinalIgnoreCase))
+            {
+                string homeProfiles = Path.Combine(userProfile, "AgVerse", "profiles");
+                Directory.CreateDirectory(homeProfiles);
+                SaveProfilesDirConfig(homeProfiles);
+                return homeProfiles;
+            }
+
             Directory.CreateDirectory(localProfiles);
             return localProfiles;
         }
@@ -204,21 +252,6 @@ namespace AgVerse
                     SetVerboseMode(prof, verbose);
                 }
             }
-        }
-        public static string RealUserHome { get; } = GetRealUserHome();
-        public static string MasterProjectsDir { get; } = Path.Combine(RealUserHome, ".gemini", "config", "projects");
-        public static string MasterAntigravityDir { get; } = Path.Combine(RealUserHome, ".gemini", "antigravity");
-
-        public static string GetRealUserHome()
-        {
-            string username = Environment.UserName;
-            if (!string.IsNullOrEmpty(username))
-            {
-                string sysDrive = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
-                string p = Path.Combine(sysDrive, "Users", username);
-                if (Directory.Exists(p)) return p;
-            }
-            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
 
         public static string AntigravityExePath { get; } = FindAntigravityExe();
