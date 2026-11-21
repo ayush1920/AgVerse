@@ -9,6 +9,11 @@ __pycache__/
 # Build artifacts and binaries (distributed via GitHub Releases)
 build/
 dist/
+bin/
+obj/
 *.spec
 *.exe
+*.pdb
 *.zip
+*.user
+*.suo

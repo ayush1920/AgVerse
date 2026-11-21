@@ -47,13 +47,13 @@ into the child process environment, the internal `sshDetector` triggers `shouldB
 
 As a result, each instance retains full autonomy over its authentication lifecycle.
 
-### 3. Selective Project Sharing
+### 3. Default-Shared Projects with Exclusion Lists
 Antigravity stores workspace descriptors as JSON files inside `.gemini/config/projects/`. 
 
-The built-in Project Sharing module allows you to:
-- Inspect projects defined in any profile.
-- Copy project definitions to other profiles on demand.
-- Keep the underlying source code folder shared on disk while maintaining completely separated AI chat histories, context windows, and accounts across profiles.
+MultiGravity adopts a **Default-Shared** model:
+- **Shared by Default**: Whenever you create a new project in any profile, it is automatically available across all your profiles.
+- **Exclusion Lists**: If you have sensitive, client-specific, or personal projects you wish to hide from a particular profile, simply add them to that profile's **Exclusion List**.
+- **Sidecar Filtering**: Antigravity's internal sidecars (e.g., `swarm/swarm_board`) are automatically filtered out so they never clutter your project list.
 
 ---
 
@@ -61,11 +61,14 @@ The built-in Project Sharing module allows you to:
 
 - Multi-Instance Support: Open as many concurrent Antigravity windows as your system resources allow.
 - Complete Account Isolation: Log into distinct Google accounts per window with no cross-account token invalidation.
-- Selective Project Sharing: Choose exactly which projects are accessible by which accounts, or maintain 100% isolation.
+- Default-Shared Projects: All projects are automatically synchronized across accounts unless placed on a profile's Exclusion List.
+- Sidecar & Swarm Isolation: Automatically ignores internal panels and sidecars like `swarm/swarm_board`.
+- High Performance C# & Python Implementations: 
+  - **Native C# (.NET 9 WinForms)**: Super lightweight (~260 KB single-file binary), instant startup, zero Python/Tkinter dependencies.
+  - **Python (Tkinter)**: Full source code in `main.py`.
+- Headless CLI Mode: Desktop shortcuts invoke `MultiGravity.exe --launch <Profile>` to auto-synchronize projects in 1ms before launching Antigravity detached.
 - Desktop Shortcuts: Generate one-click shortcuts on the Windows Desktop for any specific profile.
-- Native Classic GUI: Built with standard Tkinter for zero runtime dependencies and minimal memory footprint.
 - Multilingual: Dynamic interface translation supporting English, Portuguese, Spanish, and Russian.
-- Standalone Executable: Pre-compiled portable binary; requires no Python installation to run.
 
 ---
 

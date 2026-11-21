@@ -36,10 +36,10 @@ TEXTOS = {
         "frame_create": "Criar Novo Perfil",
         "lbl_nome": "Nome:",
         "btn_add": "Adicionar",
-        "chk_copiar": "Compartilhar todos os projetos neste novo perfil",
+        "chk_copiar": "Todos os projetos compartilhados por padrão",
         "frame_perfis": "Perfis",
         "btn_abrir": "Abrir Perfil Selecionado",
-        "btn_proj": "Compartilhar Projetos do Perfil",
+        "btn_proj": "Gerenciar Exclusões de Projetos",
         "btn_atalho": "Criar Atalho na Area de Trabalho",
         "btn_del": "Excluir Perfil",
         "lbl_idioma": "Idioma:",
@@ -50,14 +50,14 @@ TEXTOS = {
         "sucesso_criado": "Perfil '{nome}' criado com sucesso!",
         "sucesso_atalho": "Atalho criado na Area de Trabalho:\nAntigravity - {nome}.lnk",
         "confirma_del": "Tem certeza que deseja apagar o perfil '{nome}' e todos os dados dele?",
-        "top_titulo": "Compartilhar Projetos - {nome}",
-        "top_aviso": "Selecione os projetos visiveis para: {nome}",
+        "top_titulo": "Exclusões de Projetos - {nome}",
+        "top_aviso": "Marque os projetos para EXCLUIR (ocultar) de: {nome}\n(Todos os outros projetos são compartilhados por padrão)",
         "filtrar": "Filtrar:",
-        "marcar_todos": "Marcar Todos",
-        "desmarcar_todos": "Desmarcar Todos",
+        "marcar_todos": "Excluir Todos",
+        "desmarcar_todos": "Compartilhar Todos",
         "btn_salvar": "Salvar Alteracoes",
         "btn_cancelar": "Cancelar",
-        "sucesso_proj": "Projetos do perfil '{nome}' atualizados com sucesso!",
+        "sucesso_proj": "Exclusões do perfil '{nome}' atualizadas com sucesso!",
         "info_sem_proj": "Nenhum projeto encontrado no sistema!",
         "t_aviso": "Aviso",
         "t_erro": "Erro",
@@ -70,10 +70,10 @@ TEXTOS = {
         "frame_create": "Create New Profile",
         "lbl_nome": "Name:",
         "btn_add": "Add",
-        "chk_copiar": "Share all projects in this new profile",
+        "chk_copiar": "All projects shared by default",
         "frame_perfis": "Profiles",
         "btn_abrir": "Open Selected Profile",
-        "btn_proj": "Share Profile Projects",
+        "btn_proj": "Manage Project Exclusions",
         "btn_atalho": "Create Desktop Shortcut",
         "btn_del": "Delete Profile",
         "lbl_idioma": "Language:",
@@ -84,14 +84,14 @@ TEXTOS = {
         "sucesso_criado": "Profile '{nome}' created successfully!",
         "sucesso_atalho": "Shortcut created on Desktop:\nAntigravity - {nome}.lnk",
         "confirma_del": "Are you sure you want to delete profile '{nome}' and all its data?",
-        "top_titulo": "Share Projects - {nome}",
-        "top_aviso": "Select visible projects for: {nome}",
+        "top_titulo": "Project Exclusions - {nome}",
+        "top_aviso": "Check projects to EXCLUDE (hide) from: {nome}\n(All other projects are shared by default)",
         "filtrar": "Filter:",
-        "marcar_todos": "Select All",
-        "desmarcar_todos": "Deselect All",
+        "marcar_todos": "Exclude All",
+        "desmarcar_todos": "Share All (Clear)",
         "btn_salvar": "Save Changes",
         "btn_cancelar": "Cancel",
-        "sucesso_proj": "Projects for profile '{nome}' updated successfully!",
+        "sucesso_proj": "Project exclusions for '{nome}' updated successfully!",
         "info_sem_proj": "No projects found on system!",
         "t_aviso": "Warning",
         "t_erro": "Error",
@@ -104,10 +104,10 @@ TEXTOS = {
         "frame_create": "Crear Nuevo Perfil",
         "lbl_nome": "Nombre:",
         "btn_add": "Agregar",
-        "chk_copiar": "Compartir todos los proyectos en este nuevo perfil",
+        "chk_copiar": "Todos los proyectos compartidos por defecto",
         "frame_perfis": "Perfiles",
         "btn_abrir": "Abrir Perfil Seleccionado",
-        "btn_proj": "Compartir Proyectos del Perfil",
+        "btn_proj": "Administrar Exclusiones de Proyectos",
         "btn_atalho": "Crear Acceso Directo en el Escritorio",
         "btn_del": "Eliminar Perfil",
         "lbl_idioma": "Idioma:",
@@ -118,14 +118,14 @@ TEXTOS = {
         "sucesso_criado": "¡Perfil '{nome}' creado con exito!",
         "sucesso_atalho": "Acceso directo creado en el Escritorio:\nAntigravity - {nome}.lnk",
         "confirma_del": "¿Estas seguro de que deseas eliminar el perfil '{nome}' y todos sus datos?",
-        "top_titulo": "Compartir Proyectos - {nome}",
-        "top_aviso": "Selecciona los proyectos visibles para: {nome}",
+        "top_titulo": "Exclusiones de Proyectos - {nome}",
+        "top_aviso": "Marque los proyectos para EXCLUIR (ocultar) de: {nome}\n(Todos los demás se comparten por defecto)",
         "filtrar": "Filtrar:",
-        "marcar_todos": "Marcar Todos",
-        "desmarcar_todos": "Desmarcar Todos",
+        "marcar_todos": "Excluir Todos",
+        "desmarcar_todos": "Compartir Todos",
         "btn_salvar": "Guardar Cambios",
         "btn_cancelar": "Cancelar",
-        "sucesso_proj": "¡Proyectos del perfil '{nome}' actualizados con exito!",
+        "sucesso_proj": "¡Exclusiones del perfil '{nome}' actualizadas con exito!",
         "info_sem_proj": "¡No se encontraron proyectos en el sistema!",
         "t_aviso": "Aviso",
         "t_erro": "Error",
@@ -138,10 +138,10 @@ TEXTOS = {
         "frame_create": "Создать новый профиль",
         "lbl_nome": "Имя:",
         "btn_add": "Добавить",
-        "chk_copiar": "Поделиться всеми проектами в новом профиле",
+        "chk_copiar": "Все проекты доступны по умолчанию",
         "frame_perfis": "Профили",
         "btn_abrir": "Открыть выбранный профиль",
-        "btn_proj": "Управление проектами профиля",
+        "btn_proj": "Управление исключениями проектов",
         "btn_atalho": "Создать ярлык на рабочем столе",
         "btn_del": "Удалить профиль",
         "lbl_idioma": "Язык:",
@@ -152,14 +152,14 @@ TEXTOS = {
         "sucesso_criado": "Профиль '{nome}' успешно создан!",
         "sucesso_atalho": "Ярлык создан на рабочем столе:\nAntigravity - {nome}.lnk",
         "confirma_del": "Вы уверены, что хотите удалить профиль '{nome}' и все его данные?",
-        "top_titulo": "Управление проектами - {nome}",
-        "top_aviso": "Выберите проекты, доступные для: {nome}",
+        "top_titulo": "Исключения проектов - {nome}",
+        "top_aviso": "Отметьте проекты, которые нужно ИСКЛЮЧИТЬ (скрыть) для: {nome}\n(Остальные проекты доступны по умолчанию)",
         "filtrar": "Фильтр:",
-        "marcar_todos": "Выбрать все",
-        "desmarcar_todos": "Снять выделение",
+        "marcar_todos": "Исключить все",
+        "desmarcar_todos": "Открыть все (сбросить)",
         "btn_salvar": "Сохранить изменения",
         "btn_cancelar": "Отмена",
-        "sucesso_proj": "Проекты профиля '{nome}' успешно обновлены!",
+        "sucesso_proj": "Исключения проектов профиля '{nome}' успешно обновлены!",
         "info_sem_proj": "Проекты в системе не найдены!",
         "t_aviso": "Предупреждение",
         "t_erro": "Ошибка",
@@ -214,11 +214,18 @@ def obter_todos_projetos():
         if not os.path.exists(d):
             continue
         for f in os.listdir(d):
-            if f.endswith(".json") and f != "outside-of-project.json":
+            if f.endswith(".json") and f not in ("outside-of-project.json", "default-cli-project.json"):
                 caminho = os.path.join(d, f)
                 try:
                     with open(caminho, "r", encoding="utf-8") as fp:
                         dados = json.load(fp)
+                        # Filter out internal sidecars (like swarm/swarm_board)
+                        if dados.get("sidecar") or dados.get("name") == "swarm/swarm_board":
+                            continue
+                        # Only include actual workspace projects that define projectResources
+                        resources = dados.get("projectResources", {}).get("resources", [])
+                        if not resources:
+                            continue
                         nome = dados.get("name", f[:-5])
                         pid = dados.get("id", f[:-5])
                         if pid not in projetos:
@@ -226,6 +233,71 @@ def obter_todos_projetos():
                 except:
                     pass
     return projetos
+
+def carregar_exclusoes(pasta_perfil):
+    caminho = os.path.join(pasta_perfil, "exclusions.json")
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as fp:
+                dados = json.load(fp)
+                if isinstance(dados, list):
+                    return set(dados)
+        except:
+            pass
+    return set()
+
+def salvar_exclusoes(pasta_perfil, exclusoes_set):
+    caminho = os.path.join(pasta_perfil, "exclusions.json")
+    try:
+        with open(caminho, "w", encoding="utf-8") as fp:
+            json.dump(sorted(list(exclusoes_set)), fp, indent=2)
+    except:
+        pass
+
+def sincronizar_perfil(pasta_perfil):
+    pasta_proj = os.path.join(pasta_perfil, "home", ".gemini", "config", "projects")
+    os.makedirs(pasta_proj, exist_ok=True)
+    
+    outside_file = os.path.join(pasta_proj, "outside-of-project.json")
+    if not os.path.exists(outside_file):
+        try:
+            with open(outside_file, "w", encoding="utf-8") as fp:
+                json.dump({"id": "outside-of-project", "name": "Outside of Project"}, fp)
+        except:
+            pass
+
+    # Clean out orphan sidecar files (e.g., swarm/swarm_board) previously copied into this profile
+    if os.path.exists(pasta_proj):
+        for f in os.listdir(pasta_proj):
+            if f.endswith(".json") and f not in ("outside-of-project.json", "default-cli-project.json"):
+                caminho_f = os.path.join(pasta_proj, f)
+                try:
+                    with open(caminho_f, "r", encoding="utf-8") as fp:
+                        d = json.load(fp)
+                        if d.get("sidecar") or d.get("name") == "swarm/swarm_board":
+                            fp.close()
+                            os.remove(caminho_f)
+                except:
+                    pass
+
+    todos = obter_todos_projetos()
+    exclusoes = carregar_exclusoes(pasta_perfil)
+
+    # By default, every valid project is shared unless explicitly excluded
+    for pid, p_info in todos.items():
+        destino = os.path.join(pasta_proj, p_info["filename"])
+        if pid in exclusoes:
+            if os.path.exists(destino):
+                try:
+                    os.remove(destino)
+                except:
+                    pass
+        else:
+            if not os.path.exists(destino):
+                try:
+                    shutil.copy2(p_info["src"], destino)
+                except:
+                    pass
 
 def carregar_lista():
     lista.delete(0, tk.END)
@@ -236,7 +308,15 @@ def carregar_lista():
                 d_proj = os.path.join(caminho, "home", ".gemini", "config", "projects")
                 qtd = 0
                 if os.path.exists(d_proj):
-                    qtd = len([f for f in os.listdir(d_proj) if f.endswith(".json") and f != "outside-of-project.json"])
+                    for f in os.listdir(d_proj):
+                        if f.endswith(".json") and f not in ("outside-of-project.json", "default-cli-project.json"):
+                            try:
+                                with open(os.path.join(d_proj, f), "r", encoding="utf-8") as fp:
+                                    d = json.load(fp)
+                                    if not d.get("sidecar") and d.get("name") != "swarm/swarm_board":
+                                        qtd += 1
+                            except:
+                                pass
                 sufixo = t("projetos_sufixo")
                 lista.insert(tk.END, f"{pasta}  ({qtd} {sufixo})")
 
@@ -290,16 +370,9 @@ def criar_perfil():
     os.makedirs(pasta_proj, exist_ok=True)
     garantir_link_antigravity(pasta_perfil)
     
-    with open(os.path.join(pasta_proj, "outside-of-project.json"), "w", encoding="utf-8") as fp:
-        json.dump({"id": "outside-of-project", "name": "Outside of Project"}, fp)
-
-    if var_copiar_tudo.get():
-        todos = obter_todos_projetos()
-        for p in todos.values():
-            try:
-                shutil.copy2(p["src"], os.path.join(pasta_proj, p["filename"]))
-            except:
-                pass
+    # By default, all projects are shared (empty exclusions)
+    salvar_exclusoes(pasta_perfil, set())
+    sincronizar_perfil(pasta_perfil)
 
     entrada_nome.delete(0, tk.END)
     carregar_lista()
@@ -315,15 +388,10 @@ def abrir_perfil():
     pasta_perfil = os.path.join(PROFILES_DIR, nome)
     data_dir = os.path.join(pasta_perfil, "data")
     home_dir = os.path.join(pasta_perfil, "home")
-    pasta_proj = os.path.join(home_dir, ".gemini", "config", "projects")
-    os.makedirs(data_dir, exist_ok=True)
-    os.makedirs(pasta_proj, exist_ok=True)
-    garantir_link_antigravity(pasta_perfil)
     
-    outside_file = os.path.join(pasta_proj, "outside-of-project.json")
-    if not os.path.exists(outside_file):
-        with open(outside_file, "w", encoding="utf-8") as fp:
-            json.dump({"id": "outside-of-project", "name": "Outside of Project"}, fp)
+    # Sync projects before launch (so projects created in other profiles are available)
+    sincronizar_perfil(pasta_perfil)
+    garantir_link_antigravity(pasta_perfil)
 
     env = os.environ.copy()
     env["USERPROFILE"] = home_dir
@@ -342,6 +410,7 @@ def criar_atalho():
     pasta_perfil = os.path.join(PROFILES_DIR, nome)
     data_dir = os.path.join(pasta_perfil, "data")
     home_dir = os.path.join(pasta_perfil, "home")
+    sincronizar_perfil(pasta_perfil)
     garantir_link_antigravity(pasta_perfil)
     runner_script = os.path.join(pasta_perfil, "launch.vbs")
     vbs = f'''Set WshShell = CreateObject("WScript.Shell")
@@ -395,17 +464,17 @@ def gerenciar_projetos():
         messagebox.showinfo(t("t_info"), t("info_sem_proj"))
         return
 
-    arquivos_atuais = set(os.listdir(pasta_proj_perfil)) if os.path.exists(pasta_proj_perfil) else set()
+    exclusoes_atuais = carregar_exclusoes(pasta_perfil)
 
     top = tk.Toplevel(janela)
     top.title(t("top_titulo", nome=nome))
-    top.geometry("470x520")
+    top.geometry("490x540")
     top.transient(janela)
 
     frame_topo_top = tk.Frame(top, padx=10, pady=5)
     frame_topo_top.pack(fill="x")
 
-    lbl_aviso = tk.Label(frame_topo_top, text=t("top_aviso", nome=nome), font=("Arial", 9, "bold"))
+    lbl_aviso = tk.Label(frame_topo_top, text=t("top_aviso", nome=nome), font=("Arial", 9, "bold"), justify="left")
     lbl_aviso.pack(anchor="w", pady=(0, 5))
 
     frame_busca = tk.Frame(frame_topo_top)
@@ -428,7 +497,7 @@ def gerenciar_projetos():
     btn_marcar = tk.Button(frame_acoes, text=t("marcar_todos"), command=marcar_todos, width=15)
     btn_marcar.pack(side="left", padx=2)
 
-    btn_desmarcar = tk.Button(frame_acoes, text=t("desmarcar_todos"), command=desmarcar_todos, width=15)
+    btn_desmarcar = tk.Button(frame_acoes, text=t("desmarcar_todos"), command=desmarcar_todos, width=20)
     btn_desmarcar.pack(side="left", padx=2)
 
     frame_conteudo = tk.Frame(top, padx=10, pady=5)
@@ -456,10 +525,10 @@ def gerenciar_projetos():
 
     for p in projetos_ordenados:
         pid = p["id"]
-        esta_presente = p["filename"] in arquivos_atuais
-        var = tk.BooleanVar(value=esta_presente)
+        esta_excluido = pid in exclusoes_atuais
+        var = tk.BooleanVar(value=esta_excluido)
         vars_map[pid] = var
-        cb = tk.Checkbutton(frame_scroll, text=p["name"], variable=var, font=("Arial", 9))
+        cb = tk.Checkbutton(frame_scroll, text=f"[Exclude]  {p['name']}", variable=var, font=("Arial", 9))
         cb.pack(anchor="w", padx=4, pady=2)
         widgets_map[pid] = (cb, p["name"].lower())
 
@@ -477,27 +546,9 @@ def gerenciar_projetos():
     frame_rodape.pack(fill="x")
 
     def salvar():
-        os.makedirs(pasta_proj_perfil, exist_ok=True)
-        outside_f = os.path.join(pasta_proj_perfil, "outside-of-project.json")
-        if not os.path.exists(outside_f):
-            with open(outside_f, "w", encoding="utf-8") as fp:
-                json.dump({"id": "outside-of-project", "name": "Outside of Project"}, fp)
-
-        for pid, var in vars_map.items():
-            p_info = todos[pid]
-            destino = os.path.join(pasta_proj_perfil, p_info["filename"])
-            if var.get():
-                if not os.path.exists(destino):
-                    try:
-                        shutil.copy2(p_info["src"], destino)
-                    except:
-                        pass
-            else:
-                if os.path.exists(destino):
-                    try:
-                        os.remove(destino)
-                    except:
-                        pass
+        novas_exclusoes = {pid for pid, var in vars_map.items() if var.get()}
+        salvar_exclusoes(pasta_perfil, novas_exclusoes)
+        sincronizar_perfil(pasta_perfil)
         canvas.unbind_all("<MouseWheel>")
         top.destroy()
         carregar_lista()
@@ -514,7 +565,7 @@ def atualizar_textos_interface():
     frame_topo.config(text=t("frame_create"))
     lbl_nome.config(text=t("lbl_nome"))
     btn_add.config(text=t("btn_add"))
-    chk_copiar.config(text=t("chk_copiar"))
+    lbl_info_compartilhar.config(text=f"ℹ  {t('chk_copiar')}")
     frame_meio.config(text=t("frame_perfis"))
     btn_abrir.config(text=t("btn_abrir"))
     btn_proj.config(text=t("btn_proj"))
@@ -530,76 +581,76 @@ def mudar_idioma(escolha):
     salvar_idioma(sigla)
     atualizar_textos_interface()
 
-janela = tk.Tk()
-janela.geometry("500x510")
-janela.resizable(False, False)
+if __name__ == "__main__":
+    janela = tk.Tk()
+    janela.geometry("500x510")
+    janela.resizable(False, False)
 
-ico_caminho = os.path.join(BASE_DIR, "icon.ico")
-if os.path.exists(ico_caminho):
-    try:
-        janela.iconbitmap(ico_caminho)
-    except:
-        pass
-elif os.path.exists(EXE_PATH):
-    try:
-        janela.iconbitmap(EXE_PATH)
-    except:
-        pass
+    ico_caminho = os.path.join(BASE_DIR, "icon.ico")
+    if os.path.exists(ico_caminho):
+        try:
+            janela.iconbitmap(ico_caminho)
+        except:
+            pass
+    elif os.path.exists(EXE_PATH):
+        try:
+            janela.iconbitmap(EXE_PATH)
+        except:
+            pass
 
-frame_idioma = tk.Frame(janela, padx=10, pady=5)
-frame_idioma.pack(fill="x")
+    frame_idioma = tk.Frame(janela, padx=10, pady=5)
+    frame_idioma.pack(fill="x")
 
-lbl_idioma = tk.Label(frame_idioma, text=t("lbl_idioma"), font=("Arial", 9))
-lbl_idioma.pack(side="left")
+    lbl_idioma = tk.Label(frame_idioma, text=t("lbl_idioma"), font=("Arial", 9))
+    lbl_idioma.pack(side="left")
 
-var_idioma = tk.StringVar(janela)
-nome_inverso = {v: k for k, v in IDIOMAS_NOMES.items()}
-var_idioma.set(nome_inverso.get(idioma_atual, "Português"))
+    var_idioma = tk.StringVar(janela)
+    nome_inverso = {v: k for k, v in IDIOMAS_NOMES.items()}
+    var_idioma.set(nome_inverso.get(idioma_atual, "Português"))
 
-opt_idioma = tk.OptionMenu(frame_idioma, var_idioma, *IDIOMAS_NOMES.keys(), command=mudar_idioma)
-opt_idioma.config(font=("Arial", 9), width=12)
-opt_idioma.pack(side="left", padx=5)
+    opt_idioma = tk.OptionMenu(frame_idioma, var_idioma, *IDIOMAS_NOMES.keys(), command=mudar_idioma)
+    opt_idioma.config(font=("Arial", 9), width=12)
+    opt_idioma.pack(side="left", padx=5)
 
-frame_topo = tk.LabelFrame(janela, text=t("frame_create"), padx=10, pady=10)
-frame_topo.pack(padx=10, pady=5, fill="x")
+    frame_topo = tk.LabelFrame(janela, text=t("frame_create"), padx=10, pady=10)
+    frame_topo.pack(padx=10, pady=5, fill="x")
 
-lbl_nome = tk.Label(frame_topo, text=t("lbl_nome"))
-lbl_nome.grid(row=0, column=0, sticky="w")
+    lbl_nome = tk.Label(frame_topo, text=t("lbl_nome"))
+    lbl_nome.grid(row=0, column=0, sticky="w")
 
-entrada_nome = tk.Entry(frame_topo, width=28)
-entrada_nome.grid(row=0, column=1, padx=5)
+    entrada_nome = tk.Entry(frame_topo, width=28)
+    entrada_nome.grid(row=0, column=1, padx=5)
 
-btn_add = tk.Button(frame_topo, text=t("btn_add"), command=criar_perfil, width=10)
-btn_add.grid(row=0, column=2, padx=5)
+    btn_add = tk.Button(frame_topo, text=t("btn_add"), command=criar_perfil, width=10)
+    btn_add.grid(row=0, column=2, padx=5)
 
-var_copiar_tudo = tk.BooleanVar(value=False)
-chk_copiar = tk.Checkbutton(frame_topo, text=t("chk_copiar"), variable=var_copiar_tudo)
-chk_copiar.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
+    lbl_info_compartilhar = tk.Label(frame_topo, text=f"ℹ  {t('chk_copiar')}", font=("Arial", 8, "italic"), fg="#555555")
+    lbl_info_compartilhar.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
 
-frame_meio = tk.LabelFrame(janela, text=t("frame_perfis"), padx=10, pady=10)
-frame_meio.pack(padx=10, pady=5, fill="both", expand=True)
+    frame_meio = tk.LabelFrame(janela, text=t("frame_perfis"), padx=10, pady=10)
+    frame_meio.pack(padx=10, pady=5, fill="both", expand=True)
 
-scrollbar = tk.Scrollbar(frame_meio)
-scrollbar.pack(side="right", fill="y")
+    scrollbar = tk.Scrollbar(frame_meio)
+    scrollbar.pack(side="right", fill="y")
 
-lista = tk.Listbox(frame_meio, yscrollcommand=scrollbar.set, font=("Arial", 10), height=7)
-lista.pack(side="left", fill="both", expand=True)
-scrollbar.config(command=lista.yview)
+    lista = tk.Listbox(frame_meio, yscrollcommand=scrollbar.set, font=("Arial", 10), height=7)
+    lista.pack(side="left", fill="both", expand=True)
+    scrollbar.config(command=lista.yview)
 
-frame_botoes = tk.Frame(janela, padx=10, pady=5)
-frame_botoes.pack(fill="x")
+    frame_botoes = tk.Frame(janela, padx=10, pady=5)
+    frame_botoes.pack(fill="x")
 
-btn_abrir = tk.Button(frame_botoes, text=t("btn_abrir"), command=abrir_perfil, height=2, bg="#d9d9d9")
-btn_abrir.pack(fill="x", pady=2)
+    btn_abrir = tk.Button(frame_botoes, text=t("btn_abrir"), command=abrir_perfil, height=2, bg="#d9d9d9")
+    btn_abrir.pack(fill="x", pady=2)
 
-btn_proj = tk.Button(frame_botoes, text=t("btn_proj"), command=gerenciar_projetos, height=1)
-btn_proj.pack(fill="x", pady=2)
+    btn_proj = tk.Button(frame_botoes, text=t("btn_proj"), command=gerenciar_projetos, height=1)
+    btn_proj.pack(fill="x", pady=2)
 
-btn_atalho = tk.Button(frame_botoes, text=t("btn_atalho"), command=criar_atalho)
-btn_atalho.pack(fill="x", pady=2)
+    btn_atalho = tk.Button(frame_botoes, text=t("btn_atalho"), command=criar_atalho)
+    btn_atalho.pack(fill="x", pady=2)
 
-btn_del = tk.Button(frame_botoes, text=t("btn_del"), command=excluir_perfil)
-btn_del.pack(fill="x", pady=2)
+    btn_del = tk.Button(frame_botoes, text=t("btn_del"), command=excluir_perfil)
+    btn_del.pack(fill="x", pady=2)
 
-atualizar_textos_interface()
-janela.mainloop()
+    atualizar_textos_interface()
+    janela.mainloop()
