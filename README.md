@@ -94,13 +94,17 @@ python main.py
 4. In the newly opened Antigravity window, sign into your designated Google account.
 5. Repeat for any additional profiles. All instances can run at the same time.
 
-### Sharing Projects Between Profiles
+### Managing Projects (Shared, Excluded & Archived)
 
-1. Click **Share Projects** in the main window.
-2. Select the **Source Profile** that currently contains the project.
-3. In the list, click the project you want to configure.
-4. Toggle the checkboxes corresponding to target profiles you wish to grant access to.
-5. Click **Apply Changes**.
+1. Click **Manage Projects** in the main window.
+2. Select your target profile from the dropdown at the top.
+3. Inspect your projects in the visual table with real-time status indicators:
+   - 🟢 **Shared**: Active and available in this profile's Antigravity sidebar.
+   - 🟡 **Excluded**: Blocked from this profile. Click **Toggle Exclude** or use right-click to change.
+   - ⚪ **Archived**: Archived globally across all accounts.
+4. Click **Refresh** to re-scan your disk and profiles for newly added projects at any time.
+5. Double-click any project (or click **Open Folder**) to immediately view its codebase in Windows Explorer.
+6. Click **Save & Apply** to update your profiles.
 
 ### Creating Direct Desktop Shortcuts
 

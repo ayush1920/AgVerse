@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace MultiGravity
 {
-    public record ProjectInfo(string Id, string Name, string Filename, string SourcePath);
+    public record ProjectInfo(string Id, string Name, string Filename, string SourcePath, string FolderPath = "", bool IsArchived = false);
     public record ProfileInfo(string Name, int ProjectCount, string Path);
 
     public static class AntigravityCore
@@ -209,10 +209,11 @@ namespace MultiGravity
 
                         string name = nameProp.GetString() ?? Path.GetFileNameWithoutExtension(filename);
                         string id = root.TryGetProperty("id", out var idProp) ? (idProp.GetString() ?? filename) : filename;
+                        string folderPath = ExtractFolderPath(root);
 
                         if (!projects.ContainsKey(id))
                         {
-                            projects[id] = new ProjectInfo(id, name, filename, file);
+                            projects[id] = new ProjectInfo(id, name, filename, file, folderPath, false);
                         }
                     }
                     catch { }
@@ -220,6 +221,40 @@ namespace MultiGravity
             }
 
             return projects;
+        }
+
+        private static string ExtractFolderPath(JsonElement root)
+        {
+            if (root.TryGetProperty("projectResources", out var resProp) &&
+                resProp.TryGetProperty("resources", out var arrProp) &&
+                arrProp.ValueKind == JsonValueKind.Array &&
+                arrProp.GetArrayLength() > 0)
+            {
+                var first = arrProp[0];
+                string? uri = null;
+                if (first.TryGetProperty("gitFolder", out var gf) && gf.TryGetProperty("folderUri", out var fu))
+                {
+                    uri = fu.GetString();
+                }
+                else if (first.TryGetProperty("folderUri", out var fu2))
+                {
+                    uri = fu2.GetString();
+                }
+
+                if (!string.IsNullOrEmpty(uri))
+                {
+                    try
+                    {
+                        if (Uri.TryCreate(uri, UriKind.Absolute, out var parsedUri))
+                        {
+                            return parsedUri.LocalPath;
+                        }
+                        return Uri.UnescapeDataString(uri.Replace("file:///", "").Replace('/', Path.DirectorySeparatorChar));
+                    }
+                    catch { }
+                }
+            }
+            return "";
         }
 
         public static Dictionary<string, ProjectInfo> GetArchivedProjects()
@@ -237,9 +272,10 @@ namespace MultiGravity
                     var root = doc.RootElement;
                     string name = root.TryGetProperty("name", out var np) ? (np.GetString() ?? filename) : filename;
                     string id = root.TryGetProperty("id", out var ip) ? (ip.GetString() ?? filename) : filename;
+                    string folderPath = ExtractFolderPath(root);
                     if (!archived.ContainsKey(id))
                     {
-                        archived[id] = new ProjectInfo(id, name, filename, file);
+                        archived[id] = new ProjectInfo(id, name, filename, file, folderPath, true);
                     }
                 }
                 catch { }

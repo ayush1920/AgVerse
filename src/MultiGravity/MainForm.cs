@@ -20,8 +20,7 @@ namespace MultiGravity
         private Label _lblProfilesPath = null!;
 
         private Button _btnLaunch = null!;
-        private Button _btnExclusions = null!;
-        private Button _btnGlobalArchive = null!;
+        private Button _btnManageProjects = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
 
@@ -146,7 +145,7 @@ namespace MultiGravity
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 5, ColumnCount = 1 };
+            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 4, ColumnCount = 1 };
             _btnLaunch = new Button
             {
                 Text = Localization.T("btn_abrir"),
@@ -158,23 +157,16 @@ namespace MultiGravity
             };
             _btnLaunch.Click += OnLaunchProfileClick;
 
-            _btnExclusions = new Button
+            _btnManageProjects = new Button
             {
-                Text = Localization.T("btn_proj"),
+                Text = "📂 " + Localization.T("btn_proj"),
                 Dock = DockStyle.Fill,
-                Height = 32,
+                Height = 36,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = Color.FromArgb(240, 245, 255),
                 Margin = new Padding(0, 2, 0, 4)
             };
-            _btnExclusions.Click += OnManageExclusionsClick;
-
-            _btnGlobalArchive = new Button
-            {
-                Text = Localization.T("btn_global_archive"),
-                Dock = DockStyle.Fill,
-                Height = 32,
-                Margin = new Padding(0, 2, 0, 4)
-            };
-            _btnGlobalArchive.Click += OnGlobalArchiveClick;
+            _btnManageProjects.Click += OnManageProjectsClick;
 
             _btnShortcut = new Button
             {
@@ -196,10 +188,9 @@ namespace MultiGravity
             _btnDelete.Click += OnDeleteProfileClick;
 
             btnPanel.Controls.Add(_btnLaunch, 0, 0);
-            btnPanel.Controls.Add(_btnExclusions, 0, 1);
-            btnPanel.Controls.Add(_btnGlobalArchive, 0, 2);
-            btnPanel.Controls.Add(_btnShortcut, 0, 3);
-            btnPanel.Controls.Add(_btnDelete, 0, 4);
+            btnPanel.Controls.Add(_btnManageProjects, 0, 1);
+            btnPanel.Controls.Add(_btnShortcut, 0, 2);
+            btnPanel.Controls.Add(_btnDelete, 0, 3);
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
@@ -283,8 +274,7 @@ namespace MultiGravity
             _lblInfoShared.Text = Localization.T("info_default_shared");
             _grpProfiles.Text = Localization.T("frame_perfis");
             _btnLaunch.Text = Localization.T("btn_abrir");
-            _btnExclusions.Text = Localization.T("btn_proj");
-            _btnGlobalArchive.Text = Localization.T("btn_global_archive");
+            _btnManageProjects.Text = "📂 " + Localization.T("btn_proj");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
         }
@@ -336,26 +326,10 @@ namespace MultiGravity
             }
         }
 
-        private void OnManageExclusionsClick(object? sender, EventArgs e)
+        private void OnManageProjectsClick(object? sender, EventArgs e)
         {
             string? name = GetSelectedProfileName();
-            if (string.IsNullOrEmpty(name))
-            {
-                MessageBox.Show(this, Localization.T("aviso_selecao"), Localization.T("t_aviso"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            using var form = new ExclusionsForm(name);
-            if (form.ShowDialog(this) == DialogResult.OK)
-            {
-                LoadProfiles();
-            }
-        }
-
-        private void OnGlobalArchiveClick(object? sender, EventArgs e)
-        {
-            string profileName = GetSelectedProfileName() ?? "Default";
-            using var form = new ExclusionsForm(profileName, initialTabIndex: 1);
+            using var form = new ProjectsManagerForm(name);
             form.ShowDialog(this);
             LoadProfiles();
         }
