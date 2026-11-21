@@ -165,8 +165,20 @@ namespace MultiGravity
             }
             _cbProfile.SelectedIndexChanged += OnProfileChanged;
 
+            var btnRefreshToken = new Button
+            {
+                Text = "🔑 Refresh Token",
+                Height = 27,
+                AutoSize = true,
+                Padding = new Padding(6, 0, 6, 0),
+                Margin = new Padding(8, 1, 0, 0),
+                BackColor = Color.FromArgb(245, 248, 255)
+            };
+            btnRefreshToken.Click += OnRefreshProfileTokenClick;
+
             leftTop.Controls.Add(lblProfile);
             leftTop.Controls.Add(_cbProfile);
+            leftTop.Controls.Add(btnRefreshToken);
 
             var rightTop = new FlowLayoutPanel
             {
@@ -464,6 +476,42 @@ namespace MultiGravity
             LoadAllExclusions();
             ApplyFilterAndRender();
             MessageBox.Show(this, "Projects reloaded successfully from disk.", "Projects Refreshed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private async void OnRefreshProfileTokenClick(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentProfilePath) || !Directory.Exists(_currentProfilePath))
+            {
+                MessageBox.Show(this, "Profile directory not found.", Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var (success, message) = await TokenService.RefreshTokenForProfileAsync(_currentProfilePath, _currentProfileName);
+            if (success)
+            {
+                MessageBox.Show(this, message, "Token Refreshed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                var ask = MessageBox.Show(this,
+                    $"{message}\n\nWould you like to sign in with Google in your browser to generate a fresh token?",
+                    "Refresh Token - MultiGravity",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (ask == DialogResult.Yes)
+                {
+                    var (authSuccess, authMsg) = await TokenService.AuthenticateInBrowserAsync(_currentProfilePath, _currentProfileName);
+                    if (authSuccess)
+                    {
+                        MessageBox.Show(this, authMsg, Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show(this, authMsg, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
         }
 
         private void ApplyFilterAndRender()

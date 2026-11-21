@@ -18,9 +18,11 @@ namespace MultiGravity
         private GroupBox _grpProfiles = null!;
         private ListBox _lstProfiles = null!;
         private Label _lblProfilesPath = null!;
+        private Label _lblTokenInfo = null!;
 
         private Button _btnLaunch = null!;
         private Button _btnManageProjects = null!;
+        private Button _btnRefreshToken = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
 
@@ -112,8 +114,9 @@ namespace MultiGravity
 
             // 3. Profiles List GroupBox
             _grpProfiles = new GroupBox { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 8), Margin = new Padding(0, 4, 0, 8) };
-            var profilesLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1 };
+            var profilesLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
             profilesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            profilesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             profilesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             _lstProfiles = new ListBox
@@ -123,10 +126,22 @@ namespace MultiGravity
                 IntegralHeight = false
             };
             _lstProfiles.DoubleClick += (s, e) => OnLaunchProfileClick(s, e);
+            _lstProfiles.SelectedIndexChanged += (s, e) => UpdateSelectedProfileTokenInfo();
             profilesLayout.Controls.Add(_lstProfiles, 0, 0);
 
+            // Token info status bar
+            _lblTokenInfo = new Label
+            {
+                Text = "🔑 Account: Select a profile...",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.DarkSlateGray,
+                Margin = new Padding(0, 4, 0, 2)
+            };
+            profilesLayout.Controls.Add(_lblTokenInfo, 0, 1);
+
             // Profiles directory location bar
-            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, Margin = new Padding(0, 4, 0, 0) };
+            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, Margin = new Padding(0, 2, 0, 0) };
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -139,13 +154,13 @@ namespace MultiGravity
             dirPanel.Controls.Add(lblDir, 0, 0);
             dirPanel.Controls.Add(_lblProfilesPath, 1, 0);
             dirPanel.Controls.Add(lnkChange, 2, 0);
-            profilesLayout.Controls.Add(dirPanel, 0, 1);
+            profilesLayout.Controls.Add(dirPanel, 0, 2);
 
             _grpProfiles.Controls.Add(profilesLayout);
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 4, ColumnCount = 1 };
+            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 5, ColumnCount = 1 };
             _btnLaunch = new Button
             {
                 Text = Localization.T("btn_abrir"),
@@ -168,6 +183,17 @@ namespace MultiGravity
             };
             _btnManageProjects.Click += OnManageProjectsClick;
 
+            _btnRefreshToken = new Button
+            {
+                Text = "🔄 " + Localization.T("btn_refresh_token"),
+                Dock = DockStyle.Fill,
+                Height = 32,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = Color.FromArgb(245, 248, 255),
+                Margin = new Padding(0, 2, 0, 4)
+            };
+            _btnRefreshToken.Click += OnRefreshTokenClick;
+
             _btnShortcut = new Button
             {
                 Text = Localization.T("btn_atalho"),
@@ -189,8 +215,9 @@ namespace MultiGravity
 
             btnPanel.Controls.Add(_btnLaunch, 0, 0);
             btnPanel.Controls.Add(_btnManageProjects, 0, 1);
-            btnPanel.Controls.Add(_btnShortcut, 0, 2);
-            btnPanel.Controls.Add(_btnDelete, 0, 3);
+            btnPanel.Controls.Add(_btnRefreshToken, 0, 2);
+            btnPanel.Controls.Add(_btnShortcut, 0, 3);
+            btnPanel.Controls.Add(_btnDelete, 0, 4);
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
@@ -244,6 +271,39 @@ namespace MultiGravity
             }
 
             _lstProfiles.EndUpdate();
+            UpdateSelectedProfileTokenInfo();
+        }
+
+        private void UpdateSelectedProfileTokenInfo()
+        {
+            string? name = GetSelectedProfileName();
+            if (string.IsNullOrEmpty(name))
+            {
+                _lblTokenInfo.Text = "🔑 Account: No profile selected";
+                _lblTokenInfo.ForeColor = Color.Gray;
+                _btnRefreshToken.Enabled = false;
+                return;
+            }
+
+            _btnRefreshToken.Enabled = true;
+            string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
+            var (email, hasToken, isExpired, expiryText) = TokenService.GetTokenSummary(profilePath);
+
+            if (!hasToken)
+            {
+                _lblTokenInfo.Text = $"🔑 Account: None linked (click Refresh Token to sign in)";
+                _lblTokenInfo.ForeColor = Color.FromArgb(180, 90, 0);
+            }
+            else if (isExpired)
+            {
+                _lblTokenInfo.Text = $"🔑 {email}  •  Status: Expired (click Refresh Token)";
+                _lblTokenInfo.ForeColor = Color.FromArgb(190, 70, 0);
+            }
+            else
+            {
+                _lblTokenInfo.Text = $"🔑 {email}  •  Status: {expiryText}";
+                _lblTokenInfo.ForeColor = Color.FromArgb(34, 139, 34);
+            }
         }
 
         private string? GetSelectedProfileName()
@@ -275,6 +335,7 @@ namespace MultiGravity
             _grpProfiles.Text = Localization.T("frame_perfis");
             _btnLaunch.Text = Localization.T("btn_abrir");
             _btnManageProjects.Text = "📂 " + Localization.T("btn_proj");
+            _btnRefreshToken.Text = "🔄 " + Localization.T("btn_refresh_token");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
         }
@@ -332,6 +393,70 @@ namespace MultiGravity
             using var form = new ProjectsManagerForm(name);
             form.ShowDialog(this);
             LoadProfiles();
+        }
+
+        private async void OnRefreshTokenClick(object? sender, EventArgs e)
+        {
+            string? name = GetSelectedProfileName();
+            if (string.IsNullOrEmpty(name))
+            {
+                MessageBox.Show(this, Localization.T("aviso_selecao"), Localization.T("t_aviso"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
+            if (!Directory.Exists(profilePath))
+            {
+                MessageBox.Show(this, "Profile folder not found.", Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            _btnRefreshToken.Enabled = false;
+            string origText = _btnRefreshToken.Text;
+            _btnRefreshToken.Text = "⏳ Refreshing token...";
+
+            try
+            {
+                var (success, message) = await TokenService.RefreshTokenForProfileAsync(profilePath, name);
+                if (success)
+                {
+                    UpdateSelectedProfileTokenInfo();
+                    MessageBox.Show(this, message, Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    var ask = MessageBox.Show(this,
+                        $"{message}\n\nWould you like to sign in with Google in your browser to generate a fresh token?",
+                        "Refresh Token - MultiGravity",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (ask == DialogResult.Yes)
+                    {
+                        _btnRefreshToken.Text = "⏳ Waiting for browser sign-in...";
+                        var (authSuccess, authMsg) = await TokenService.AuthenticateInBrowserAsync(profilePath, name);
+                        UpdateSelectedProfileTokenInfo();
+                        if (authSuccess)
+                        {
+                            MessageBox.Show(this, authMsg, Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show(this, authMsg, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Error refreshing token: " + ex.Message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _btnRefreshToken.Enabled = true;
+                _btnRefreshToken.Text = origText;
+                UpdateSelectedProfileTokenInfo();
+            }
         }
 
         private void OnCreateShortcutClick(object? sender, EventArgs e)
