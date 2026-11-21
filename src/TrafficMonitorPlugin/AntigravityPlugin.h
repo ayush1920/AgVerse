@@ -12,25 +12,38 @@
 
 #pragma comment(lib, "crypt32.lib")
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "user32.lib")
 
 class CPluginItem : public IPluginItem
 {
 public:
-    CPluginItem(const wchar_t* id, const wchar_t* name, const wchar_t* label, const wchar_t* sample)
-        : m_id(id), m_name(name), m_label(label), m_sample(sample), m_activeBuf(0)
+    CPluginItem(const wchar_t* id, const wchar_t* name, const wchar_t* label, const wchar_t* sample, bool isCustomDraw = false)
+        : m_id(id), m_name(name), m_label(label), m_sample(sample), m_isCustomDraw(isCustomDraw),
+          m_activeBuf(0), m_activeLabelBuf(0)
     {
         wcscpy_s(m_buffers[0], L"N/A");
         wcscpy_s(m_buffers[1], L"N/A");
+        wcscpy_s(m_labelBuffers[0], label);
+        wcscpy_s(m_labelBuffers[1], label);
     }
 
     virtual const wchar_t* GetItemName() const override { return m_name.c_str(); }
     virtual const wchar_t* GetItemId() const override { return m_id.c_str(); }
-    virtual const wchar_t* GetItemLableText() const override { return m_label.c_str(); }
+    virtual const wchar_t* GetItemLableText() const override
+    {
+        return m_labelBuffers[m_activeLabelBuf.load(std::memory_order_relaxed)];
+    }
     virtual const wchar_t* GetItemValueText() const override
     {
         return m_buffers[m_activeBuf.load(std::memory_order_relaxed)];
     }
     virtual const wchar_t* GetItemValueSampleText() const override { return m_sample.c_str(); }
+
+    virtual bool IsCustomDraw() const override { return m_isCustomDraw; }
+    virtual int GetItemWidth() const override { return 110; }
+    virtual int GetItemWidthEx(void* hDC) const override;
+    virtual void DrawItem(void* hDC, int x, int y, int w, int h, bool dark_mode) override;
 
     void UpdateValue(const wchar_t* newValue)
     {
@@ -39,13 +52,23 @@ public:
         m_activeBuf.store(next, std::memory_order_release);
     }
 
+    void UpdateLabel(const wchar_t* newLabel)
+    {
+        int next = 1 - m_activeLabelBuf.load(std::memory_order_relaxed);
+        wcscpy_s(m_labelBuffers[next], newLabel);
+        m_activeLabelBuf.store(next, std::memory_order_release);
+    }
+
 private:
     std::wstring m_id;
     std::wstring m_name;
     std::wstring m_label;
     std::wstring m_sample;
+    bool m_isCustomDraw;
     wchar_t m_buffers[2][256];
+    wchar_t m_labelBuffers[2][256];
     std::atomic<int> m_activeBuf;
+    std::atomic<int> m_activeLabelBuf;
 };
 
 class CAntigravityPlugin : public ITMPlugin
