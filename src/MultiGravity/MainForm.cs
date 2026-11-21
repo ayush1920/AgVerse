@@ -25,6 +25,7 @@ namespace MultiGravity
         private Button _btnRefreshToken = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
+        private readonly ToolTip _toolTip = new();
 
         public MainForm()
         {
@@ -35,7 +36,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Size = new Size(540, 640);
+            Size = new Size(580, 660);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -141,15 +142,28 @@ namespace MultiGravity
             profilesLayout.Controls.Add(_lblTokenInfo, 0, 1);
 
             // Profiles directory location bar
-            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, Margin = new Padding(0, 2, 0, 0) };
+            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Height = 22, ColumnCount = 3, Margin = new Padding(0, 2, 0, 0) };
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
             var lblDir = new Label { Text = "Path:", AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray, Anchor = AnchorStyles.Left };
-            _lblProfilesPath = new Label { Text = AntigravityCore.ProfilesDir, AutoEllipsis = true, AutoSize = false, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8F), ForeColor = Color.DarkSlateGray, Anchor = AnchorStyles.Left };
+            _lblProfilesPath = new Label
+            {
+                Text = AntigravityCore.ProfilesDir,
+                AutoEllipsis = true,
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.DarkSlateGray,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
             var lnkChange = new LinkLabel { Text = "Change...", AutoSize = true, Font = new Font("Segoe UI", 8F), Anchor = AnchorStyles.Right, Padding = new Padding(0, 0, 2, 0) };
             lnkChange.LinkClicked += OnChangeProfilesFolder;
+
+            _toolTip.SetToolTip(_lblProfilesPath, AntigravityCore.ProfilesDir);
+            _toolTip.SetToolTip(lblDir, AntigravityCore.ProfilesDir);
 
             dirPanel.Controls.Add(lblDir, 0, 0);
             dirPanel.Controls.Add(_lblProfilesPath, 1, 0);
@@ -236,6 +250,7 @@ namespace MultiGravity
             {
                 AntigravityCore.SetProfilesDir(dlg.SelectedPath);
                 _lblProfilesPath.Text = dlg.SelectedPath;
+                _toolTip.SetToolTip(_lblProfilesPath, dlg.SelectedPath);
                 LoadProfiles();
             }
         }
