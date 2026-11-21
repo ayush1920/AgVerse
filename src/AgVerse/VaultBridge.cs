@@ -285,6 +285,39 @@ namespace AgVerse
             catch { }
         }
 
+        public static void RemoveAccount(string? email, string? profileName)
+        {
+            try
+            {
+                // Safety: check if any OTHER profile directory on disk still uses this email
+                if (!string.IsNullOrEmpty(email) && Directory.Exists(AntigravityCore.ProfilesDir))
+                {
+                    foreach (string profDir in Directory.GetDirectories(AntigravityCore.ProfilesDir))
+                    {
+                        string dirName = Path.GetFileName(profDir);
+                        if (string.Equals(dirName, profileName, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(profDir);
+                        if (hasToken && string.Equals(tEmail, email, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Another profile still uses this email; don't remove from vault
+                            return;
+                        }
+                    }
+                }
+
+                var vault = LoadVaultJson();
+                JsonObject? target = FindAccount(vault, email, profileName);
+                if (target != null)
+                {
+                    vault.Remove(target);
+                    SaveVaultJson(vault);
+                    TriggerRainmeterSync();
+                }
+            }
+            catch { }
+        }
+
         public static void SyncProfileTokenFromVault(string profilePath, string profileName)
         {
             try
@@ -300,17 +333,43 @@ namespace AgVerse
                 }
 
                 JsonObject? acc = FindAccount(vault, currentEmail, profileName);
-                if (acc == null) return;
+                if (acc == null)
+                {
+                    // Profile has a token locally that is not in vault -> import to vault so Rainmeter sees it
+                    if (File.Exists(tokenFile) && !string.IsNullOrEmpty(currentEmail))
+                    {
+                        try
+                        {
+                            string localRaw = File.ReadAllText(tokenFile);
+                            var localRoot = JsonNode.Parse(localRaw);
+                            string accessToken = localRoot?["token"]?["access_token"]?.ToString() ?? "";
+                            string refreshToken = localRoot?["token"]?["refresh_token"]?.ToString() ?? "";
+                            string idToken = localRoot?["id_token"]?.ToString() ?? "";
+                            string expiryStr = localRoot?["token"]?["expiry"]?.ToString() ?? "";
+                            long expUnix = 0;
+                            if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
+                            {
+                                expUnix = localOffset.ToUnixTimeSeconds();
+                            }
+                            if (!string.IsNullOrEmpty(accessToken))
+                            {
+                                UpdateOrAddAccount(currentEmail, profileName, accessToken, refreshToken, idToken, expUnix, localRaw);
+                            }
+                        }
+                        catch { }
+                    }
+                    return;
+                }
 
                 string? rawBlob = acc["RawBlob"]?.ToString();
-                if (string.IsNullOrEmpty(rawBlob)) return;
-
                 long vaultExpiresAt = acc["ExpiresAt"]?.GetValue<long>() ?? 0;
 
-                bool shouldUpdate = false;
+                bool shouldUpdateLocal = false;
+                bool shouldUpdateVault = false;
+
                 if (!File.Exists(tokenFile))
                 {
-                    shouldUpdate = true;
+                    if (!string.IsNullOrEmpty(rawBlob)) shouldUpdateLocal = true;
                 }
                 else
                 {
@@ -322,26 +381,52 @@ namespace AgVerse
                         if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
                         {
                             long localExpiresAt = localOffset.ToUnixTimeSeconds();
-                            if (vaultExpiresAt > localExpiresAt + 60)
+                            if (vaultExpiresAt > localExpiresAt + 60 && !string.IsNullOrEmpty(rawBlob))
                             {
-                                shouldUpdate = true;
+                                shouldUpdateLocal = true;
+                            }
+                            else if (localExpiresAt > vaultExpiresAt + 60)
+                            {
+                                shouldUpdateVault = true;
                             }
                         }
-                        else
+                        else if (!string.IsNullOrEmpty(rawBlob))
                         {
-                            shouldUpdate = true;
+                            shouldUpdateLocal = true;
                         }
                     }
                     catch
                     {
-                        shouldUpdate = true;
+                        if (!string.IsNullOrEmpty(rawBlob)) shouldUpdateLocal = true;
                     }
                 }
 
-                if (shouldUpdate)
+                if (shouldUpdateLocal && !string.IsNullOrEmpty(rawBlob))
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(tokenFile)!);
                     File.WriteAllText(tokenFile, rawBlob, new UTF8Encoding(false));
+                }
+                else if (shouldUpdateVault)
+                {
+                    try
+                    {
+                        string localRaw = File.ReadAllText(tokenFile);
+                        var localRoot = JsonNode.Parse(localRaw);
+                        string accessToken = localRoot?["token"]?["access_token"]?.ToString() ?? "";
+                        string refreshToken = localRoot?["token"]?["refresh_token"]?.ToString() ?? "";
+                        string idToken = localRoot?["id_token"]?.ToString() ?? "";
+                        string expiryStr = localRoot?["token"]?["expiry"]?.ToString() ?? "";
+                        long expUnix = 0;
+                        if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
+                        {
+                            expUnix = localOffset.ToUnixTimeSeconds();
+                        }
+                        if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(currentEmail))
+                        {
+                            UpdateOrAddAccount(currentEmail, profileName, accessToken, refreshToken, idToken, expUnix, localRaw);
+                        }
+                    }
+                    catch { }
                 }
             }
             catch { }

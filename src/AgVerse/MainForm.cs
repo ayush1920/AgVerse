@@ -37,6 +37,7 @@ namespace AgVerse
             InitializeComponent();
             LoadProfiles();
             UpdateLocalizedTexts();
+            Activated += (s, e) => UpdateSelectedProfileTokenInfo();
         }
 
         private int Dpi(int px) => (int)Math.Round(px * (DeviceDpi / 96.0f));
@@ -565,9 +566,9 @@ namespace AgVerse
             }
         }
 
-        private void LoadProfiles()
+        private void LoadProfiles(string? selectName = null)
         {
-            string? selectedName = GetSelectedProfileName();
+            string? selectedName = selectName ?? GetSelectedProfileName();
             _lstProfiles.BeginUpdate();
             _lstProfiles.Items.Clear();
 
@@ -772,7 +773,7 @@ namespace AgVerse
             {
                 AntigravityCore.CreateProfile(name);
                 _txtProfileName.Clear();
-                LoadProfiles();
+                LoadProfiles(name);
                 MessageBox.Show(this, Localization.T("sucesso_criado", name), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -906,7 +907,16 @@ namespace AgVerse
             {
                 try
                 {
+                    string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
+                    string? email = null;
+                    if (Directory.Exists(profilePath))
+                    {
+                        var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
+                        if (hasToken) email = tEmail;
+                    }
+
                     AntigravityCore.DeleteProfile(name);
+                    VaultBridge.RemoveAccount(email, name);
                     LoadProfiles();
                 }
                 catch (Exception ex)
