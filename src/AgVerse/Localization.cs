@@ -22,8 +22,9 @@ namespace AgVerse
             ["en"] = new()
             {
                 ["title"] = "AgVerse - Multi-Profile Manager for Antigravity",
-                ["frame_create"] = "Create New Profile",
+                ["frame_create"] = "Create or Rename Profile",
                 ["lbl_nome"] = "Profile Name:",
+                ["btn_save"] = "Save",
                 ["btn_add"] = "Add",
                 ["info_default_shared"] = "ℹ All projects are shared by default. Exclusions can be configured per profile.",
                 ["frame_perfis"] = "Profiles",
@@ -43,6 +44,7 @@ namespace AgVerse
                 ["aviso_nome"] = "Please enter a profile name!",
                 ["erro_existe"] = "A profile with this name already exists!",
                 ["sucesso_criado"] = "Profile '{0}' created successfully!",
+                ["sucesso_renomeado"] = "Profile '{0}' renamed to '{1}' successfully!",
                 ["sucesso_atalho"] = "Shortcut created on Desktop:\nAntigravity - {0}.lnk",
                 ["confirma_del"] = "Are you sure you want to delete profile '{0}' and all its isolated data?",
                 ["top_titulo"] = "Project Exclusions - {0}",
@@ -75,8 +77,9 @@ namespace AgVerse
             ["pt"] = new()
             {
                 ["title"] = "AgVerse - Gerenciador de Perfis Antigravity",
-                ["frame_create"] = "Criar Novo Perfil",
+                ["frame_create"] = "Criar ou Renomear Perfil",
                 ["lbl_nome"] = "Nome do Perfil:",
+                ["btn_save"] = "Salvar",
                 ["btn_add"] = "Adicionar",
                 ["info_default_shared"] = "ℹ Todos os projetos são compartilhados por padrão. Exclusões são gerenciadas por perfil.",
                 ["frame_perfis"] = "Perfis",
@@ -96,6 +99,7 @@ namespace AgVerse
                 ["aviso_nome"] = "Digite um nome para o perfil!",
                 ["erro_existe"] = "Já existe um perfil com esse nome!",
                 ["sucesso_criado"] = "Perfil '{0}' criado com sucesso!",
+                ["sucesso_renomeado"] = "Perfil '{0}' renomeado para '{1}' com sucesso!",
                 ["sucesso_atalho"] = "Atalho criado na Área de Trabalho:\nAntigravity - {0}.lnk",
                 ["confirma_del"] = "Tem certeza que deseja apagar o perfil '{0}' e todos os dados dele?",
                 ["top_titulo"] = "Exclusões de Projetos - {0}",
@@ -128,8 +132,9 @@ namespace AgVerse
             ["es"] = new()
             {
                 ["title"] = "AgVerse - Administrador de Perfiles Antigravity",
-                ["frame_create"] = "Crear Nuevo Perfil",
+                ["frame_create"] = "Crear o Renombrar Perfil",
                 ["lbl_nome"] = "Nombre del Perfil:",
+                ["btn_save"] = "Guardar",
                 ["btn_add"] = "Agregar",
                 ["info_default_shared"] = "ℹ Todos los proyectos se comparten por defecto. Exclusiones configurables por perfil.",
                 ["frame_perfis"] = "Perfiles",
@@ -149,6 +154,7 @@ namespace AgVerse
                 ["aviso_nome"] = "¡Introduce un nombre para el perfil!",
                 ["erro_existe"] = "¡Ya existe un perfil con ese nombre!",
                 ["sucesso_criado"] = "¡Perfil '{0}' creado con éxito!",
+                ["sucesso_renomeado"] = "¡Perfil '{0}' renombrado a '{1}' con éxito!",
                 ["sucesso_atalho"] = "Acceso directo creado en el Escritorio:\nAntigravity - {0}.lnk",
                 ["confirma_del"] = "¿Estás seguro de que deseas eliminar el perfil '{0}' y todos sus datos?",
                 ["top_titulo"] = "Exclusiones de Proyectos - {0}",
@@ -181,8 +187,9 @@ namespace AgVerse
             ["ru"] = new()
             {
                 ["title"] = "AgVerse - Менеджер профилей Antigravity",
-                ["frame_create"] = "Создать новый профиль",
+                ["frame_create"] = "Создать или переименовать профиль",
                 ["lbl_nome"] = "Имя профиля:",
+                ["btn_save"] = "Сохранить",
                 ["btn_add"] = "Добавить",
                 ["info_default_shared"] = "ℹ Все проекты доступны по умолчанию. Исключения настраиваются для каждого профиля.",
                 ["frame_perfis"] = "Профили",
@@ -202,6 +209,7 @@ namespace AgVerse
                 ["aviso_nome"] = "Введите имя для профиля!",
                 ["erro_existe"] = "Профиль с таким именем уже существует!",
                 ["sucesso_criado"] = "Профиль '{0}' успешно создан!",
+                ["sucesso_renomeado"] = "Профиль '{0}' успешно переименован в '{1}'!",
                 ["sucesso_atalho"] = "Ярлык создан на рабочем столе:\nAntigravity - {0}.lnk",
                 ["confirma_del"] = "Вы уверены, что хотите удалить профиль '{0}' и все его данные?",
                 ["top_titulo"] = "Исключения проектов - {0}",

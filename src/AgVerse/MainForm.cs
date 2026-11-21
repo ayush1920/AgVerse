@@ -15,6 +15,7 @@ namespace AgVerse
         private GroupBox _grpCreate = null!;
         private Label _lblProfileName = null!;
         private TextBox _txtProfileName = null!;
+        private Button _btnSaveProfile = null!;
         private Button _btnAddProfile = null!;
         private Label _lblInfoShared = null!;
 
@@ -214,14 +215,15 @@ namespace AgVerse
             {
                 Dock = DockStyle.Fill,
                 AutoSize = true,
-                ColumnCount = 3,
+                ColumnCount = 4,
                 RowCount = 2,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Dpi(88)));
+            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Dpi(75)));
+            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Dpi(75)));
 
             _lblProfileName = new Label
             {
@@ -235,7 +237,34 @@ namespace AgVerse
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0, Dpi(1), Dpi(6), Dpi(1))
             };
-            _txtProfileName.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { OnAddProfileClick(s, e); e.SuppressKeyPress = true; } };
+            _txtProfileName.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    string? cur = GetSelectedProfileName();
+                    string text = _txtProfileName.Text.Trim();
+                    if (!string.IsNullOrEmpty(cur) && !string.Equals(cur, text, StringComparison.OrdinalIgnoreCase) && Directory.Exists(Path.Combine(AntigravityCore.ProfilesDir, cur)))
+                    {
+                        OnSaveProfileClick(s, e);
+                    }
+                    else
+                    {
+                        OnAddProfileClick(s, e);
+                    }
+                    e.SuppressKeyPress = true;
+                }
+            };
+
+            _btnSaveProfile = CreateUniformButton(
+                Localization.T("btn_save"),
+                Dpi(25),
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: new Padding(0, 0, Dpi(6), 0));
+            _btnSaveProfile.Click += OnSaveProfileClick;
 
             _btnAddProfile = CreateUniformButton(
                 Localization.T("btn_add"),
@@ -259,9 +288,10 @@ namespace AgVerse
 
             createLayout.Controls.Add(_lblProfileName, 0, 0);
             createLayout.Controls.Add(_txtProfileName, 1, 0);
-            createLayout.Controls.Add(_btnAddProfile, 2, 0);
+            createLayout.Controls.Add(_btnSaveProfile, 2, 0);
+            createLayout.Controls.Add(_btnAddProfile, 3, 0);
             createLayout.Controls.Add(_lblInfoShared, 0, 1);
-            createLayout.SetColumnSpan(_lblInfoShared, 3);
+            createLayout.SetColumnSpan(_lblInfoShared, 4);
             _grpCreate.Controls.Add(createLayout);
             rootPanel.Controls.Add(_grpCreate, 0, 1);
 
@@ -297,7 +327,15 @@ namespace AgVerse
             };
             _lstProfiles.DrawItem += OnDrawProfileItem;
             _lstProfiles.DoubleClick += (s, e) => OnLaunchProfileClick(s, e);
-            _lstProfiles.SelectedIndexChanged += (s, e) => UpdateSelectedProfileTokenInfo();
+            _lstProfiles.SelectedIndexChanged += (s, e) =>
+            {
+                string? sel = GetSelectedProfileName();
+                if (!string.IsNullOrEmpty(sel))
+                {
+                    _txtProfileName.Text = sel;
+                }
+                UpdateSelectedProfileTokenInfo();
+            };
             profilesLayout.Controls.Add(_lstProfiles, 0, 0);
 
             // Token info status bar
@@ -710,6 +748,7 @@ namespace AgVerse
             Text = Localization.T("title");
             _grpCreate.Text = Localization.T("frame_create");
             _lblProfileName.Text = Localization.T("lbl_nome");
+            _btnSaveProfile.Text = Localization.T("btn_save");
             _btnAddProfile.Text = Localization.T("btn_add");
             _lblInfoShared.Text = Localization.T("info_default_shared");
             _grpProfiles.Text = Localization.T("frame_perfis");
@@ -775,6 +814,45 @@ namespace AgVerse
                 _txtProfileName.Clear();
                 LoadProfiles(name);
                 MessageBox.Show(this, Localization.T("sucesso_criado", name), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OnSaveProfileClick(object? sender, EventArgs e)
+        {
+            string newName = _txtProfileName.Text.Trim();
+            if (string.IsNullOrEmpty(newName))
+            {
+                MessageBox.Show(this, Localization.T("aviso_nome"), Localization.T("t_aviso"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (Path.GetInvalidFileNameChars().Any(newName.Contains))
+            {
+                MessageBox.Show(this, "Profile name contains invalid characters.", Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            string? currentSelected = GetSelectedProfileName();
+            if (string.IsNullOrEmpty(currentSelected))
+            {
+                MessageBox.Show(this, Localization.T("aviso_selecao"), Localization.T("t_aviso"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (string.Equals(currentSelected, newName, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            try
+            {
+                AntigravityCore.RenameProfile(currentSelected, newName);
+                LoadProfiles(newName);
+                MessageBox.Show(this, Localization.T("sucesso_renomeado", currentSelected, newName), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {

@@ -786,8 +786,127 @@ namespace AgVerse
             string profilePath = Path.Combine(ProfilesDir, name);
             if (Directory.Exists(profilePath))
             {
-                Directory.Delete(profilePath, true);
+                SafeDeleteDirectory(profilePath);
             }
+        }
+
+        public static void SafeDeleteDirectory(string path)
+        {
+            var di = new DirectoryInfo(path);
+            if (!di.Exists) return;
+
+            // Remove reparse points (junctions / symlinks) from deepest to shallowest
+            var subDirs = di.GetDirectories("*", SearchOption.AllDirectories)
+                .OrderByDescending(d => d.FullName.Length)
+                .ToList();
+
+            foreach (var subDir in subDirs)
+            {
+                if (subDir.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    try { subDir.Delete(false); } catch { }
+                }
+            }
+
+            foreach (var file in di.GetFiles("*", SearchOption.AllDirectories))
+            {
+                try { file.Attributes = FileAttributes.Normal; } catch { }
+            }
+
+            Directory.Delete(path, true);
+        }
+
+        public static void RenameProfile(string oldName, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
+            {
+                throw new ArgumentException("Profile name cannot be empty.");
+            }
+
+            if (oldName.Equals(newName, StringComparison.Ordinal))
+            {
+                return; // Nothing to change
+            }
+
+            if (Path.GetInvalidFileNameChars().Any(newName.Contains))
+            {
+                throw new ArgumentException("Profile name contains invalid characters.");
+            }
+
+            string oldPath = Path.Combine(ProfilesDir, oldName);
+            string newPath = Path.Combine(ProfilesDir, newName);
+
+            if (!Directory.Exists(oldPath))
+            {
+                throw new DirectoryNotFoundException($"Profile folder '{oldName}' does not exist.");
+            }
+
+            bool isCaseOnlyChange = string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase);
+            if (!isCaseOnlyChange && Directory.Exists(newPath))
+            {
+                throw new InvalidOperationException($"A profile named '{newName}' already exists.");
+            }
+
+            // 1. Move directory
+            if (isCaseOnlyChange)
+            {
+                string tempPath = Path.Combine(ProfilesDir, oldName + "_tmp_" + Guid.NewGuid().ToString("N").Substring(0, 4));
+                Directory.Move(oldPath, tempPath);
+                Directory.Move(tempPath, newPath);
+            }
+            else
+            {
+                Directory.Move(oldPath, newPath);
+            }
+
+            // 2. Retarget any symlinks in other profiles pointing to oldPath
+            try
+            {
+                foreach (string otherProfDir in Directory.GetDirectories(ProfilesDir))
+                {
+                    if (string.Equals(otherProfDir, newPath, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    string skillsLink = Path.Combine(otherProfDir, "home", ".gemini", "config", "skills");
+                    if (File.Exists(skillsLink) || Directory.Exists(skillsLink))
+                    {
+                        var info = new DirectoryInfo(skillsLink);
+                        if (info.LinkTarget != null && info.LinkTarget.StartsWith(oldPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string newTarget = newPath + info.LinkTarget.Substring(oldPath.Length);
+                            try
+                            {
+                                Directory.Delete(skillsLink);
+                                Directory.CreateSymbolicLink(skillsLink, newTarget);
+                            }
+                            catch { }
+                        }
+                    }
+
+                    string mcpLink = Path.Combine(otherProfDir, "home", ".gemini", "config", "mcp_config.json");
+                    if (File.Exists(mcpLink))
+                    {
+                        var info = new FileInfo(mcpLink);
+                        if (info.LinkTarget != null && info.LinkTarget.StartsWith(oldPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string newTarget = newPath + info.LinkTarget.Substring(oldPath.Length);
+                            try
+                            {
+                                File.Delete(mcpLink);
+                                File.CreateSymbolicLink(mcpLink, newTarget);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Update vault.dat Label and trigger Rainmeter sync
+            try
+            {
+                VaultBridge.RenameAccountLabel(oldName, newName, newPath);
+            }
+            catch { }
         }
 
         public static void LaunchProfile(string name)

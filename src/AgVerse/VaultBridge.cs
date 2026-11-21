@@ -318,6 +318,29 @@ namespace AgVerse
             catch { }
         }
 
+        public static void RenameAccountLabel(string oldProfileName, string newProfileName, string newProfilePath)
+        {
+            try
+            {
+                var vault = LoadVaultJson();
+                string? email = null;
+                if (Directory.Exists(newProfilePath))
+                {
+                    var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(newProfilePath);
+                    if (hasToken) email = tEmail;
+                }
+
+                JsonObject? acc = FindAccount(vault, email, oldProfileName);
+                if (acc != null)
+                {
+                    acc["Label"] = newProfileName;
+                    SaveVaultJson(vault);
+                    TriggerRainmeterSync();
+                }
+            }
+            catch { }
+        }
+
         public static void SyncProfileTokenFromVault(string profilePath, string profileName)
         {
             try
