@@ -14,10 +14,14 @@ AgVerse allows you to run multiple instances of Antigravity simultaneously, each
 
 Official standalone installers and portable single-file binaries are available under [Releases](https://github.com/ayush1920/AgVerse/releases):
 
-| Architecture | Setup Installer | Portable Single-File Binary |
-| :--- | :--- | :--- |
-| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.0-x64.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse.exe` (x64) |
-| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.0-x86.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse.exe` (x86) |
+| Architecture | Setup Installer | Portable (Lightweight, ~450 KB) | Portable (Self-Contained, ~50 MB) |
+| :--- | :--- | :--- | :--- |
+| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.0-x64.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.0-win-x64-portable.exe` | `AgVerse-v2.0.0-win-x64-portable-selfcontained.exe` |
+| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.0-x86.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.0-win-x86-portable.exe` | `AgVerse-v2.0.0-win-x86-portable-selfcontained.exe` |
+
+> **Note**:
+> - **Lightweight Portable (~450 KB)**: Requires Windows 10/11 with .NET Desktop Runtime installed. Instant download with zero runtime overhead.
+> - **Self-Contained Portable (~50 MB)**: Bundles the entire .NET runtime engine. Runs on any clean Windows machine out-of-the-box with zero prerequisites.
 
 ### Installer Features
 - **Zero Admin Elevation Needed**: Installs cleanly per-user into `Local Programs` or system-wide without UAC permission friction.
