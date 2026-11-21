@@ -265,8 +265,7 @@ namespace AgVerse
                 CurrentLanguage = lang;
                 try
                 {
-                    string json = JsonSerializer.Serialize(new { lang });
-                    File.WriteAllText(configFile, json);
+                    AntigravityCore.SaveConfigProperty("lang", System.Text.Json.Nodes.JsonValue.Create(lang));
                 }
                 catch { }
             }

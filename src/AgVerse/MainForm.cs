@@ -188,9 +188,12 @@ namespace AgVerse
             _lstProfiles = new ListBox
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
-                IntegralHeight = false
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point),
+                IntegralHeight = false,
+                DrawMode = DrawMode.OwnerDrawFixed,
+                ItemHeight = 28
             };
+            _lstProfiles.DrawItem += OnDrawProfileItem;
             _lstProfiles.DoubleClick += (s, e) => OnLaunchProfileClick(s, e);
             _lstProfiles.SelectedIndexChanged += (s, e) => UpdateSelectedProfileTokenInfo();
             profilesLayout.Controls.Add(_lstProfiles, 0, 0);
@@ -436,6 +439,47 @@ namespace AgVerse
             UpdateSelectedProfileTokenInfo();
         }
 
+        private void OnDrawProfileItem(object? sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= _lstProfiles.Items.Count) return;
+
+            string text = _lstProfiles.Items[e.Index]?.ToString() ?? "";
+            bool isDefault = text.Contains(Localization.T("badge_default")) || text.Contains("★");
+            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+
+            // Soft-tinted selection background or alternating rows
+            Color bgColor;
+            if (isSelected)
+            {
+                bgColor = isDefault ? Color.FromArgb(235, 248, 238) : Color.FromArgb(235, 245, 255);
+            }
+            else
+            {
+                bgColor = e.Index % 2 == 0 ? Color.White : Color.FromArgb(250, 252, 255);
+            }
+
+            using (var bgBrush = new SolidBrush(bgColor))
+            {
+                e.Graphics.FillRectangle(bgBrush, e.Bounds);
+            }
+
+            // Selection border
+            if (isSelected)
+            {
+                Color borderColor = isDefault ? Color.FromArgb(140, 210, 160) : Color.FromArgb(160, 200, 245);
+                using var pen = new Pen(borderColor);
+                e.Graphics.DrawRectangle(pen, e.Bounds.X, e.Bounds.Y, e.Bounds.Width - 1, e.Bounds.Height - 1);
+            }
+
+            // Default profile in Green, rest of profiles in Blue
+            Color textColor = isDefault ? Color.FromArgb(16, 124, 65) : Color.FromArgb(9, 105, 218);
+            using var font = new Font(e.Font ?? _lstProfiles.Font, isDefault ? FontStyle.Bold : FontStyle.Regular);
+
+            var textRect = new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, text, font, textRect, textColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        }
+
         private void UpdateSelectedProfileTokenInfo()
         {
             string? name = GetSelectedProfileName();
@@ -456,10 +500,13 @@ namespace AgVerse
             bool isActive = VaultBridge.IsProfileActiveInIde(name, profilePath);
             string activeTag = isActive ? "  •  " + Localization.T("badge_default") : "";
 
+            // For default show in Green, rest of profiles in Blue
+            Color activeColor = isActive ? Color.FromArgb(16, 124, 65) : Color.FromArgb(9, 105, 218);
+
             if (!hasToken)
             {
                 _lblTokenInfo.Text = $"🔑 Account: None linked (click Refresh Token to sign in){activeTag}";
-                _lblTokenInfo.ForeColor = Color.FromArgb(180, 90, 0);
+                _lblTokenInfo.ForeColor = activeColor;
             }
             else if (isExpired)
             {
@@ -469,7 +516,7 @@ namespace AgVerse
             else
             {
                 _lblTokenInfo.Text = $"🔑 {email}  •  Status: {expiryText}{activeTag}";
-                _lblTokenInfo.ForeColor = Color.FromArgb(34, 139, 34);
+                _lblTokenInfo.ForeColor = activeColor;
             }
         }
 

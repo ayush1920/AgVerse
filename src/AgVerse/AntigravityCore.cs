@@ -148,67 +148,103 @@ namespace AgVerse
             }
         }
 
-        private static void SaveProfilesDirConfig(string path)
+        public static void SaveConfigProperty(string key, JsonNode? value)
         {
+            var files = new List<string> { ConfigFile };
             try
             {
-                var dict = new Dictionary<string, object>();
-                if (File.Exists(ConfigFile))
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
-                        foreach (var prop in doc.RootElement.EnumerateObject())
-                        {
-                            dict[prop.Name] = prop.Value.Clone();
-                        }
-                    }
-                    catch { }
-                }
-                dict["profiles_dir"] = path;
-                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+                string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                files.Add(Path.Combine(localApp, "AntigravityQuota", "agverse_config.json"));
+                files.Add(Path.Combine(localApp, "AgVerse", "config.json"));
             }
             catch { }
+
+            foreach (string file in files.Distinct())
+            {
+                try
+                {
+                    string dir = Path.GetDirectoryName(file) ?? "";
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+
+                    JsonObject root;
+                    if (File.Exists(file))
+                    {
+                        try
+                        {
+                            string raw = File.ReadAllText(file);
+                            root = JsonNode.Parse(raw)?.AsObject() ?? new JsonObject();
+                        }
+                        catch { root = new JsonObject(); }
+                    }
+                    else
+                    {
+                        root = new JsonObject();
+                    }
+
+                    root[key] = value?.DeepClone();
+                    File.WriteAllText(file, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                }
+                catch { }
+            }
+        }
+
+        private static void SaveProfilesDirConfig(string path)
+        {
+            SaveConfigProperty("profiles_dir", JsonValue.Create(path));
         }
 
         public static bool GetVerboseModeConfig()
         {
+            var files = new List<string> { ConfigFile };
             try
             {
-                if (File.Exists(ConfigFile))
+                string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                files.Add(Path.Combine(localApp, "AntigravityQuota", "agverse_config.json"));
+                files.Add(Path.Combine(localApp, "AgVerse", "config.json"));
+            }
+            catch { }
+
+            foreach (string file in files.Distinct())
+            {
+                try
                 {
-                    using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
-                    if (doc.RootElement.TryGetProperty("verbose_mode", out var v))
+                    if (File.Exists(file))
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(file));
+                        if (doc.RootElement.TryGetProperty("verbose_mode", out var v))
+                        {
+                            return v.GetBoolean();
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Fallback: check master .gemini/config/config.json
+            try
+            {
+                string masterCfg = Path.Combine(RealUserHome, ".gemini", "config", "config.json");
+                if (File.Exists(masterCfg))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(masterCfg));
+                    if (doc.RootElement.TryGetProperty("userSettings", out var us) &&
+                        us.TryGetProperty("verboseConversationSteps", out var v))
                     {
                         return v.GetBoolean();
                     }
                 }
             }
             catch { }
+
             return false;
         }
 
         public static void SetVerboseModeConfig(bool verbose)
         {
-            try
-            {
-                var dict = new Dictionary<string, object>();
-                if (File.Exists(ConfigFile))
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
-                        foreach (var prop in doc.RootElement.EnumerateObject())
-                        {
-                            dict[prop.Name] = prop.Value.Clone();
-                        }
-                    }
-                    catch { }
-                }
-                dict["verbose_mode"] = verbose;
-                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
-            }
-            catch { }
+            SaveConfigProperty("verbose_mode", JsonValue.Create(verbose));
         }
 
         public static void SetVerboseMode(string profilePath, bool verbose)
@@ -252,6 +288,24 @@ namespace AgVerse
                     SetVerboseMode(prof, verbose);
                 }
             }
+
+            // Also synchronize master .gemini if present
+            try
+            {
+                string masterCfg = Path.Combine(RealUserHome, ".gemini", "config", "config.json");
+                if (File.Exists(masterCfg))
+                {
+                    string raw = File.ReadAllText(masterCfg);
+                    var root = JsonNode.Parse(raw)?.AsObject() ?? new JsonObject();
+                    if (!root.ContainsKey("userSettings") || root["userSettings"] is not JsonObject)
+                    {
+                        root["userSettings"] = new JsonObject();
+                    }
+                    root["userSettings"]!["verboseConversationSteps"] = verbose;
+                    File.WriteAllText(masterCfg, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                }
+            }
+            catch { }
         }
 
         public static string AntigravityExePath { get; } = FindAntigravityExe();
