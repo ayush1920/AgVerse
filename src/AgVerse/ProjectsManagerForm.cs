@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public class ProjectsManagerForm : Form
     {
@@ -92,7 +92,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Text = "Manage Projects - MultiGravity";
+            Text = "Manage Projects - AgVerse";
             Size = new Size(820, 640);
             MinimumSize = new Size(720, 520);
             StartPosition = FormStartPosition.CenterParent;
@@ -495,7 +495,7 @@ namespace MultiGravity
             {
                 var ask = MessageBox.Show(this,
                     $"{message}\n\nWould you like to sign in with Google in your browser to generate a fresh token?",
-                    "Refresh Token - MultiGravity",
+                    "Refresh Token - AgVerse",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 

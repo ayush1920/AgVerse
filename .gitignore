@@ -12,6 +12,8 @@ build/
 dist/
 bin/
 obj/
+publish/
+installer/Output/
 *.spec
 *.exe
 *.pdb

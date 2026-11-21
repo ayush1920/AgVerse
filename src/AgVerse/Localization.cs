@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public static class Localization
     {
@@ -21,7 +21,7 @@ namespace MultiGravity
         {
             ["en"] = new()
             {
-                ["title"] = "MultiGravity - Multi-Profile Manager for Antigravity",
+                ["title"] = "AgVerse - Multi-Profile Manager for Antigravity",
                 ["frame_create"] = "Create New Profile",
                 ["lbl_nome"] = "Profile Name:",
                 ["btn_add"] = "Add",
@@ -74,7 +74,7 @@ namespace MultiGravity
             },
             ["pt"] = new()
             {
-                ["title"] = "MultiGravity - Gerenciador de Perfis Antigravity",
+                ["title"] = "AgVerse - Gerenciador de Perfis Antigravity",
                 ["frame_create"] = "Criar Novo Perfil",
                 ["lbl_nome"] = "Nome do Perfil:",
                 ["btn_add"] = "Adicionar",
@@ -127,7 +127,7 @@ namespace MultiGravity
             },
             ["es"] = new()
             {
-                ["title"] = "MultiGravity - Administrador de Perfiles Antigravity",
+                ["title"] = "AgVerse - Administrador de Perfiles Antigravity",
                 ["frame_create"] = "Crear Nuevo Perfil",
                 ["lbl_nome"] = "Nombre del Perfil:",
                 ["btn_add"] = "Agregar",
@@ -180,7 +180,7 @@ namespace MultiGravity
             },
             ["ru"] = new()
             {
-                ["title"] = "MultiGravity - Менеджер профилей Antigravity",
+                ["title"] = "AgVerse - Менеджер профилей Antigravity",
                 ["frame_create"] = "Создать новый профиль",
                 ["lbl_nome"] = "Имя профиля:",
                 ["btn_add"] = "Добавить",

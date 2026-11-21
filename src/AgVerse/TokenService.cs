@@ -12,7 +12,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public static class TokenService
     {
@@ -290,7 +290,7 @@ namespace MultiGravity
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>MultiGravity Authentication Successful</title>
+    <title>AgVerse Authentication Successful</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                background: #0d1117; color: #c9d1d9; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
@@ -306,8 +306,8 @@ namespace MultiGravity
         <div class='check'>✓</div>
         <h1>Google Authentication Successful</h1>
         <p>Token captured and saved for profile: <b>" + WebUtility.HtmlEncode(profileName) + @"</b></p>
-        <div class='badge'>MultiGravity Token Linked</div>
-        <p style='margin-top: 24px; font-size: 13px;'>You may now close this tab and return to MultiGravity.</p>
+        <div class='badge'>AgVerse Token Linked</div>
+        <p style='margin-top: 24px; font-size: 13px;'>You may now close this tab and return to AgVerse.</p>
     </div>
 </body>
 </html>";

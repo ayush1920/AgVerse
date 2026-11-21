@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace MultiGravity
+namespace AgVerse
 {
     internal static class Program
     {
@@ -11,7 +11,7 @@ namespace MultiGravity
             AntigravityCore.Initialize();
 
             // Headless launcher mode for Desktop Shortcuts
-            // e.g. MultiGravity.exe --launch "ProfileName"
+            // e.g. AgVerse.exe --launch "ProfileName"
             if (args.Length >= 2 && (args[0].Equals("--launch", StringComparison.OrdinalIgnoreCase) ||
                                      args[0].Equals("-l", StringComparison.OrdinalIgnoreCase)))
             {
@@ -22,7 +22,7 @@ namespace MultiGravity
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Failed to launch profile: " + ex.Message, "MultiGravity Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Failed to launch profile: " + ex.Message, "AgVerse Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 return;
             }
@@ -35,7 +35,7 @@ namespace MultiGravity
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Fatal MultiGravity Error:\n" + ex.ToString(), "MultiGravity Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Fatal AgVerse Error:\n" + ex.ToString(), "AgVerse Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

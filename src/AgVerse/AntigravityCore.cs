@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public record ProjectInfo(string Id, string Name, string Filename, string SourcePath, string FolderPath = "", bool IsArchived = false);
     public record ProfileInfo(string Name, int ProjectCount, string Path);
@@ -65,13 +65,15 @@ namespace MultiGravity
                 }
             }
 
-            // 4. Auto-detect existing MultiGravity profiles on the system
+            // 4. Auto-detect existing AgVerse profiles on the system
             string userProfile = RealUserHome;
             string[] commonLocations = new[]
             {
                 Path.Combine(userProfile, "Downloads", "Programs", "profiles"),
+                Path.Combine(userProfile, "Downloads", "AgVerse", "profiles"),
+                Path.Combine(userProfile, "Desktop", "AgVerse", "profiles"),
+                Path.Combine(userProfile, "AgVerse", "profiles"),
                 Path.Combine(userProfile, "Downloads", "MultiGravity", "profiles"),
-                Path.Combine(userProfile, "Desktop", "MultiGravity", "profiles"),
                 Path.Combine(userProfile, "MultiGravity", "profiles")
             };
 
@@ -754,8 +756,8 @@ WshShell.Run """"""{AntigravityExePath}"""" --user-data-dir=""""{dataDir}"""""",
 ";
             File.WriteAllText(runnerScript, vbs);
 
-            // 2. Create Desktop Shortcut pointing directly to MultiGravity --launch (with auto-sync)
-            string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(BaseDir, "MultiGravity.exe");
+            // 2. Create Desktop Shortcut pointing directly to AgVerse --launch (with auto-sync)
+            string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(BaseDir, "AgVerse.exe");
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             string shortcutPath = Path.Combine(desktop, $"Antigravity - {name}.lnk");
 

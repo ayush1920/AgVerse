@@ -1,13 +1,15 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public class MainForm : Form
     {
+        private Button _btnGitHub = null!;
         private ComboBox _cbLanguage = null!;
         private GroupBox _grpCreate = null!;
         private Label _lblProfileName = null!;
@@ -66,8 +68,19 @@ namespace MultiGravity
             rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Profiles List
             rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Action Buttons
 
-            // 1. Language selector
-            var langPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, 0, 0, 8) };
+            // 1. Top Header: Language Selector + GitHub Link Button
+            var topHeaderPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0, 0, 0, 8)
+            };
+            topHeaderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            topHeaderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var langPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = Padding.Empty };
             var lblLang = new Label { Text = "Language / Idioma:", AutoSize = true, Padding = new Padding(0, 5, 6, 0) };
             _cbLanguage = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140 };
             foreach (var kvp in Localization.LanguageOptions)
@@ -80,7 +93,42 @@ namespace MultiGravity
 
             langPanel.Controls.Add(lblLang);
             langPanel.Controls.Add(_cbLanguage);
-            rootPanel.Controls.Add(langPanel, 0, 0);
+
+            _btnGitHub = new Button
+            {
+                Text = " GitHub",
+                Image = LoadGitHubIcon(),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleRight,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(246, 248, 250),
+                ForeColor = Color.FromArgb(36, 41, 47),
+                Height = 27,
+                Width = 90,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Margin = new Padding(0, 1, 0, 0)
+            };
+            _btnGitHub.FlatAppearance.BorderColor = Color.FromArgb(208, 215, 222);
+            _btnGitHub.FlatAppearance.BorderSize = 1;
+            _btnGitHub.Click += (s, e) =>
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo("https://github.com/ayush1920/AgVerse") { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Could not open repository link: {ex.Message}", "AgVerse", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            };
+            _toolTip.SetToolTip(_btnGitHub, "View AgVerse source repository on GitHub (ayush1920/AgVerse)");
+
+            topHeaderPanel.Controls.Add(langPanel, 0, 0);
+            topHeaderPanel.Controls.Add(_btnGitHub, 1, 0);
+            rootPanel.Controls.Add(topHeaderPanel, 0, 0);
 
             // 2. Create Profile GroupBox
             _grpCreate = new GroupBox { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(12, 10, 14, 12), Margin = new Padding(0, 0, 0, 6) };
@@ -264,11 +312,43 @@ namespace MultiGravity
             Controls.Add(rootPanel);
         }
 
+        private Image? LoadGitHubIcon()
+        {
+            try
+            {
+                var asm = typeof(MainForm).Assembly;
+                var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("github_20.png", StringComparison.OrdinalIgnoreCase));
+                if (resName != null)
+                {
+                    using var stream = asm.GetManifestResourceStream(resName);
+                    if (stream != null)
+                    {
+                        return Image.FromStream(stream);
+                    }
+                }
+            }
+            catch { }
+
+            string[] candidates = [
+                Path.Combine(AntigravityCore.BaseDir, "github_20.png"),
+                Path.Combine(AntigravityCore.BaseDir, "..", "..", "github_20.png"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "github_20.png")
+            ];
+            foreach (var path in candidates)
+            {
+                if (File.Exists(path))
+                {
+                    try { return Image.FromFile(path); } catch { }
+                }
+            }
+            return null;
+        }
+
         private void OnChangeProfilesFolder(object? sender, LinkLabelLinkClickedEventArgs e)
         {
             using var dlg = new FolderBrowserDialog
             {
-                Description = "Select MultiGravity Profiles Folder",
+                Description = "Select AgVerse Profiles Folder",
                 SelectedPath = AntigravityCore.ProfilesDir,
                 UseDescriptionForTitle = true
             };
@@ -513,7 +593,7 @@ namespace MultiGravity
                 {
                     var ask = MessageBox.Show(this,
                         $"{message}\n\nWould you like to sign in with Google in your browser to generate a fresh token?",
-                        "Refresh Token - MultiGravity",
+                        "Refresh Token - AgVerse",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 

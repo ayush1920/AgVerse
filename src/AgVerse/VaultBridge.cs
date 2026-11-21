@@ -9,7 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace MultiGravity
+namespace AgVerse
 {
     public static class VaultBridge
     {
@@ -26,7 +26,8 @@ namespace MultiGravity
 
         public static string VaultDir => Path.Combine(RealLocalAppData, "AntigravityQuota");
         public static string VaultPath => Path.Combine(VaultDir, "vault.dat");
-        public static string MultiGravityProfilesPointerFile => Path.Combine(VaultDir, "multigravity_profiles.txt");
+        public static string AgVerseProfilesPointerFile => Path.Combine(VaultDir, "agverse_profiles.txt");
+        public static string LegacyProfilesPointerFile => Path.Combine(VaultDir, "multigravity_profiles.txt");
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct CREDENTIAL
@@ -53,7 +54,8 @@ namespace MultiGravity
             try
             {
                 Directory.CreateDirectory(VaultDir);
-                File.WriteAllText(MultiGravityProfilesPointerFile, profilesDir, Encoding.UTF8);
+                File.WriteAllText(AgVerseProfilesPointerFile, profilesDir, Encoding.UTF8);
+                File.WriteAllText(LegacyProfilesPointerFile, profilesDir, Encoding.UTF8);
             }
             catch { }
         }
