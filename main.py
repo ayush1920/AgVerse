@@ -40,6 +40,7 @@ def obter_diretorio_perfis():
     return local
 
 PROFILES_DIR = obter_diretorio_perfis()
+ARCHIVED_DIR = os.path.join(BASE_DIR, "archived_projects")
 
 def get_antigravity_exe():
     local = os.environ.get("LOCALAPPDATA", "")
@@ -260,6 +261,88 @@ def obter_todos_projetos():
                     pass
     return projetos
 
+def obter_projetos_arquivados():
+    arquivados = {}
+    if not os.path.exists(ARCHIVED_DIR):
+        return arquivados
+    for f in os.listdir(ARCHIVED_DIR):
+        if f.endswith(".json"):
+            caminho = os.path.join(ARCHIVED_DIR, f)
+            try:
+                with open(caminho, "r", encoding="utf-8") as fp:
+                    dados = json.load(fp)
+                    nome = dados.get("name", f[:-5])
+                    pid = dados.get("id", f[:-5])
+                    if pid not in arquivados:
+                        arquivados[pid] = {"id": pid, "name": nome, "filename": f, "src": caminho}
+            except:
+                pass
+    return arquivados
+
+def arquivar_projeto(pid):
+    todos = obter_todos_projetos()
+    if pid not in todos:
+        return False
+    pinfo = todos[pid]
+    os.makedirs(ARCHIVED_DIR, exist_ok=True)
+    dest = os.path.join(ARCHIVED_DIR, pinfo["filename"])
+    try:
+        shutil.copy2(pinfo["src"], dest)
+    except:
+        return False
+
+    # Remove from MASTER_DIR
+    master_f = os.path.join(MASTER_DIR, pinfo["filename"])
+    if os.path.exists(master_f):
+        try:
+            os.remove(master_f)
+        except:
+            pass
+
+    # Remove from all profiles
+    if os.path.exists(PROFILES_DIR):
+        for prof in os.listdir(PROFILES_DIR):
+            pdir = os.path.join(PROFILES_DIR, prof)
+            if os.path.isdir(pdir):
+                f = os.path.join(pdir, "home", ".gemini", "config", "projects", pinfo["filename"])
+                if os.path.exists(f):
+                    try:
+                        os.remove(f)
+                    except:
+                        pass
+                ex = carregar_exclusoes(pdir)
+                if pid in ex:
+                    ex.remove(pid)
+                    salvar_exclusoes(pdir, ex)
+
+    sincronizar_todos_perfis()
+    return True
+
+def desarquivar_projeto(pid):
+    arquivados = obter_projetos_arquivados()
+    if pid not in arquivados:
+        return False
+    pinfo = arquivados[pid]
+    os.makedirs(MASTER_DIR, exist_ok=True)
+    dest = os.path.join(MASTER_DIR, pinfo["filename"])
+    try:
+        shutil.copy2(pinfo["src"], dest)
+        os.remove(pinfo["src"])
+    except:
+        return False
+    sincronizar_todos_perfis()
+    return True
+
+def sincronizar_todos_perfis():
+    if os.path.exists(PROFILES_DIR):
+        for prof in os.listdir(PROFILES_DIR):
+            pdir = os.path.join(PROFILES_DIR, prof)
+            if os.path.isdir(pdir):
+                try:
+                    sincronizar_perfil(pdir)
+                except:
+                    pass
+
 def carregar_exclusoes(pasta_perfil):
     caminho = os.path.join(pasta_perfil, "exclusions.json")
     if os.path.exists(caminho):
@@ -305,6 +388,16 @@ def sincronizar_perfil(pasta_perfil):
                             os.remove(caminho_f)
                 except:
                     pass
+
+    # Clean out any archived projects that may still be in profile
+    arquivados = obter_projetos_arquivados()
+    for ap in arquivados.values():
+        af = os.path.join(pasta_proj, ap["filename"])
+        if os.path.exists(af):
+            try:
+                os.remove(af)
+            except:
+                pass
 
     todos = obter_todos_projetos()
     exclusoes = carregar_exclusoes(pasta_perfil)

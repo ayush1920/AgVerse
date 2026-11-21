@@ -21,6 +21,7 @@ namespace MultiGravity
 
         private Button _btnLaunch = null!;
         private Button _btnExclusions = null!;
+        private Button _btnGlobalArchive = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
 
@@ -33,7 +34,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Size = new Size(540, 600);
+            Size = new Size(540, 640);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -145,7 +146,7 @@ namespace MultiGravity
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 4, ColumnCount = 1 };
+            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 5, ColumnCount = 1 };
             _btnLaunch = new Button
             {
                 Text = Localization.T("btn_abrir"),
@@ -165,6 +166,15 @@ namespace MultiGravity
                 Margin = new Padding(0, 2, 0, 4)
             };
             _btnExclusions.Click += OnManageExclusionsClick;
+
+            _btnGlobalArchive = new Button
+            {
+                Text = Localization.T("btn_global_archive"),
+                Dock = DockStyle.Fill,
+                Height = 32,
+                Margin = new Padding(0, 2, 0, 4)
+            };
+            _btnGlobalArchive.Click += OnGlobalArchiveClick;
 
             _btnShortcut = new Button
             {
@@ -187,8 +197,9 @@ namespace MultiGravity
 
             btnPanel.Controls.Add(_btnLaunch, 0, 0);
             btnPanel.Controls.Add(_btnExclusions, 0, 1);
-            btnPanel.Controls.Add(_btnShortcut, 0, 2);
-            btnPanel.Controls.Add(_btnDelete, 0, 3);
+            btnPanel.Controls.Add(_btnGlobalArchive, 0, 2);
+            btnPanel.Controls.Add(_btnShortcut, 0, 3);
+            btnPanel.Controls.Add(_btnDelete, 0, 4);
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
@@ -273,6 +284,7 @@ namespace MultiGravity
             _grpProfiles.Text = Localization.T("frame_perfis");
             _btnLaunch.Text = Localization.T("btn_abrir");
             _btnExclusions.Text = Localization.T("btn_proj");
+            _btnGlobalArchive.Text = Localization.T("btn_global_archive");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
         }
@@ -338,6 +350,14 @@ namespace MultiGravity
             {
                 LoadProfiles();
             }
+        }
+
+        private void OnGlobalArchiveClick(object? sender, EventArgs e)
+        {
+            string profileName = GetSelectedProfileName() ?? "Default";
+            using var form = new ExclusionsForm(profileName, initialTabIndex: 1);
+            form.ShowDialog(this);
+            LoadProfiles();
         }
 
         private void OnCreateShortcutClick(object? sender, EventArgs e)

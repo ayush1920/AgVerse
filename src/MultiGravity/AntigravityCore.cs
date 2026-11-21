@@ -15,6 +15,7 @@ namespace MultiGravity
         public static string BaseDir { get; } = DetermineBaseDir();
         public static string ConfigFile { get; } = Path.Combine(BaseDir, "config.json");
         public static string ProfilesDir { get; private set; } = DetermineProfilesDir();
+        public static string ArchivedProjectsDir => Path.Combine(BaseDir, "archived_projects");
 
         private static string DetermineBaseDir()
         {
@@ -221,6 +222,105 @@ namespace MultiGravity
             return projects;
         }
 
+        public static Dictionary<string, ProjectInfo> GetArchivedProjects()
+        {
+            var archived = new Dictionary<string, ProjectInfo>(StringComparer.OrdinalIgnoreCase);
+            if (!Directory.Exists(ArchivedProjectsDir)) return archived;
+
+            foreach (string file in Directory.GetFiles(ArchivedProjectsDir, "*.json"))
+            {
+                string filename = Path.GetFileName(file);
+                try
+                {
+                    using var stream = File.OpenRead(file);
+                    using var doc = JsonDocument.Parse(stream);
+                    var root = doc.RootElement;
+                    string name = root.TryGetProperty("name", out var np) ? (np.GetString() ?? filename) : filename;
+                    string id = root.TryGetProperty("id", out var ip) ? (ip.GetString() ?? filename) : filename;
+                    if (!archived.ContainsKey(id))
+                    {
+                        archived[id] = new ProjectInfo(id, name, filename, file);
+                    }
+                }
+                catch { }
+            }
+            return archived;
+        }
+
+        public static bool ArchiveProject(string projectId)
+        {
+            var all = GetAllProjects();
+            if (!all.TryGetValue(projectId, out var pinfo)) return false;
+
+            Directory.CreateDirectory(ArchivedProjectsDir);
+            string dest = Path.Combine(ArchivedProjectsDir, pinfo.Filename);
+
+            // 1. Copy to archived_projects directory
+            try { File.Copy(pinfo.SourcePath, dest, true); } catch { return false; }
+
+            // 2. Remove from MasterProjectsDir
+            string masterFile = Path.Combine(MasterProjectsDir, pinfo.Filename);
+            if (File.Exists(masterFile))
+            {
+                try { File.Delete(masterFile); } catch { }
+            }
+
+            // 3. Remove from all profiles
+            if (Directory.Exists(ProfilesDir))
+            {
+                foreach (string prof in Directory.GetDirectories(ProfilesDir))
+                {
+                    string f = Path.Combine(prof, "home", ".gemini", "config", "projects", pinfo.Filename);
+                    if (File.Exists(f))
+                    {
+                        try { File.Delete(f); } catch { }
+                    }
+
+                    // Also remove from profile exclusions if present
+                    var ex = GetExclusions(prof);
+                    if (ex.Remove(projectId))
+                    {
+                        SaveExclusions(prof, ex);
+                    }
+                }
+            }
+
+            // 4. Sync all profiles to ensure clean state
+            SyncAllProfiles();
+            return true;
+        }
+
+        public static bool UnarchiveProject(string projectId)
+        {
+            var archived = GetArchivedProjects();
+            if (!archived.TryGetValue(projectId, out var pinfo)) return false;
+
+            Directory.CreateDirectory(MasterProjectsDir);
+            string dest = Path.Combine(MasterProjectsDir, pinfo.Filename);
+
+            try
+            {
+                File.Copy(pinfo.SourcePath, dest, true);
+                File.Delete(pinfo.SourcePath);
+            }
+            catch { return false; }
+
+            // Restore across all profiles via sync
+            SyncAllProfiles();
+            return true;
+        }
+
+        public static void SyncAllProfiles()
+        {
+            if (Directory.Exists(ProfilesDir))
+            {
+                foreach (string prof in Directory.GetDirectories(ProfilesDir))
+                {
+                    try { SyncProfileProjects(prof); } catch { }
+                }
+            }
+        }
+
         public static HashSet<string> GetExclusions(string profilePath)
         {
             string exFile = Path.Combine(profilePath, "exclusions.json");
@@ -367,6 +467,17 @@ namespace MultiGravity
                         }
                     }
                     catch { }
+                }
+            }
+
+            // Clean out any archived projects that may still exist in profile
+            var archivedProjects = GetArchivedProjects();
+            foreach (var ap in archivedProjects.Values)
+            {
+                string af = Path.Combine(projDir, ap.Filename);
+                if (File.Exists(af))
+                {
+                    try { File.Delete(af); } catch { }
                 }
             }
 
