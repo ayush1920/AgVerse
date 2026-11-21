@@ -146,7 +146,7 @@ namespace AgVerse
             _cbProfile = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 200,
+                Width = 160,
                 Margin = new Padding(0, 2, 0, 0)
             };
             foreach (var p in _profiles)
@@ -167,11 +167,11 @@ namespace AgVerse
 
             var btnRefreshToken = new Button
             {
-                Text = "🔑 Refresh Token",
+                Text = "🔑 " + Localization.T("btn_refresh_token"),
                 Height = 27,
                 AutoSize = true,
                 Padding = new Padding(6, 0, 6, 0),
-                Margin = new Padding(8, 1, 0, 0),
+                Margin = new Padding(10, 1, 0, 0),
                 BackColor = Color.FromArgb(245, 248, 255)
             };
             btnRefreshToken.Click += OnRefreshProfileTokenClick;
@@ -193,7 +193,7 @@ namespace AgVerse
 
             _txtSearch = new TextBox
             {
-                Width = 220,
+                Width = 140,
                 PlaceholderText = "🔍 Search project or folder...",
                 Margin = new Padding(0, 3, 6, 0)
             };
@@ -208,6 +208,8 @@ namespace AgVerse
                 Text = "🔄 " + Localization.T("btn_refresh"),
                 Height = 27,
                 AutoSize = true,
+                MinimumSize = new Size(85, 27),
+                TextAlign = ContentAlignment.MiddleCenter,
                 Padding = new Padding(8, 0, 8, 0),
                 Margin = new Padding(0, 1, 0, 0),
                 BackColor = Color.FromArgb(245, 245, 248)
@@ -292,7 +294,8 @@ namespace AgVerse
             {
                 if (e.ColumnIndex != 2) AdjustColumnWidths();
             };
-            Shown += (s, e) => AdjustColumnWidths();
+            Shown += (s, e) => { AdjustColumnWidths(); AdjustSearchBoxWidth(); };
+            Resize += (s, e) => AdjustSearchBoxWidth();
 
             // Context Menu
             _contextMenu = new ContextMenuStrip();
@@ -671,6 +674,14 @@ namespace AgVerse
             {
                 _isAdjustingColumns = false;
             }
+        }
+
+        private void AdjustSearchBoxWidth()
+        {
+            if (_txtSearch == null) return;
+            // Default width: 140px. Expand dynamically by at most 25-30% (max 180px).
+            int extra = Math.Max(0, (ClientSize.Width - 720) / 4);
+            _txtSearch.Width = Math.Min(180, 140 + extra);
         }
 
         private bool MatchesSearch(ProjectInfo p)

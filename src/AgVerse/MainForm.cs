@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -96,23 +97,37 @@ namespace AgVerse
 
             _btnGitHub = new Button
             {
-                Text = " GitHub",
-                Image = LoadGitHubIcon(),
-                ImageAlign = ContentAlignment.MiddleLeft,
-                TextAlign = ContentAlignment.MiddleRight,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Text = "GitHub",
+                TextAlign = ContentAlignment.MiddleCenter,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(246, 248, 250),
                 ForeColor = Color.FromArgb(36, 41, 47),
                 Height = 27,
-                Width = 90,
+                Width = 92,
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 1, 0, 0)
+                Margin = new Padding(0, 1, 0, 0),
+                Padding = new Padding(18, 0, 0, 0)
             };
             _btnGitHub.FlatAppearance.BorderColor = Color.FromArgb(208, 215, 222);
             _btnGitHub.FlatAppearance.BorderSize = 1;
+            _btnGitHub.Paint += (s, pe) =>
+            {
+                pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                pe.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                pe.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                float dpiScale = pe.Graphics.DpiX / 96.0f;
+                int iconTargetSize = dpiScale > 1.25f ? (int)Math.Round(16.0f * dpiScale) : 16;
+                var icon = LoadGitHubIcon(dpiScale > 1.25f);
+                if (icon != null)
+                {
+                    int x = Math.Max(7, (int)Math.Round(8.0f * dpiScale));
+                    int y = (_btnGitHub.ClientSize.Height - iconTargetSize) / 2;
+                    pe.Graphics.DrawImage(icon, new Rectangle(x, y, iconTargetSize, iconTargetSize));
+                }
+            };
             _btnGitHub.Click += (s, e) =>
             {
                 try
@@ -312,27 +327,50 @@ namespace AgVerse
             Controls.Add(rootPanel);
         }
 
-        private Image? LoadGitHubIcon()
+        private static Image? _githubIcon16;
+        private static Image? _githubIcon32;
+
+        private Image? LoadGitHubIcon(bool highDpi = false)
+        {
+            if (highDpi && _githubIcon32 != null) return _githubIcon32;
+            if (!highDpi && _githubIcon16 != null) return _githubIcon16;
+
+            string preferredName = highDpi ? "github_32.png" : "github_16.png";
+            string fallbackName = highDpi ? "github_24.png" : "github_20.png";
+
+            Image? img = LoadIconFromResource(preferredName) 
+                      ?? LoadIconFromFile(preferredName) 
+                      ?? LoadIconFromResource(fallbackName) 
+                      ?? LoadIconFromFile(fallbackName);
+
+            if (highDpi) _githubIcon32 = img;
+            else _githubIcon16 = img;
+
+            return img;
+        }
+
+        private static Image? LoadIconFromResource(string fileName)
         {
             try
             {
                 var asm = typeof(MainForm).Assembly;
-                var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith("github_20.png", StringComparison.OrdinalIgnoreCase));
+                var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
                 if (resName != null)
                 {
                     using var stream = asm.GetManifestResourceStream(resName);
-                    if (stream != null)
-                    {
-                        return Image.FromStream(stream);
-                    }
+                    if (stream != null) return Image.FromStream(stream);
                 }
             }
             catch { }
+            return null;
+        }
 
+        private static Image? LoadIconFromFile(string fileName)
+        {
             string[] candidates = [
-                Path.Combine(AntigravityCore.BaseDir, "github_20.png"),
-                Path.Combine(AntigravityCore.BaseDir, "..", "..", "github_20.png"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "github_20.png")
+                Path.Combine(AntigravityCore.BaseDir, fileName),
+                Path.Combine(AntigravityCore.BaseDir, "..", "..", fileName),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName)
             ];
             foreach (var path in candidates)
             {

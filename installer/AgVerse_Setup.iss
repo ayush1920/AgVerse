@@ -42,8 +42,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "..\publish\{#Arch}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\github_16.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\github_20.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\github_24.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\github_32.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"

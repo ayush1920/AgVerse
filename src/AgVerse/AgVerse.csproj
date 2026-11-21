@@ -20,8 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\github_16.png" Link="Resources\github_16.png" />
     <EmbeddedResource Include="..\..\github_20.png" Link="Resources\github_20.png" />
     <EmbeddedResource Include="..\..\github_24.png" Link="Resources\github_24.png" />
+    <EmbeddedResource Include="..\..\github_32.png" Link="Resources\github_32.png" />
     <EmbeddedResource Include="..\..\icon.ico" Link="Resources\icon.ico" />
   </ItemGroup>
 
