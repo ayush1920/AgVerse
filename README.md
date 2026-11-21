@@ -25,8 +25,8 @@ Official standalone installers and portable single-file binaries are available d
 
 | Architecture | Standalone Setup (~50 MB, Recommended) | Lightweight Setup (~2 MB) | Portable (Lightweight, ~450 KB) | Portable (Self-Contained, ~50 MB) |
 | :--- | :--- | :--- | :--- | :--- |
-| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.1-x64.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.1-x64-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.1-win-x64-portable.exe` | `AgVerse-v2.0.1-win-x64-portable-selfcontained.exe` |
-| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.1-x86.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.1-x86-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.1-win-x86-portable.exe` | `AgVerse-v2.0.1-win-x86-portable-selfcontained.exe` |
+| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.2-x64.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.2-x64-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.2-win-x64-portable.exe` | `AgVerse-v2.0.2-win-x64-portable-selfcontained.exe` |
+| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.2-x86.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.2-x86-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.2-win-x86-portable.exe` | `AgVerse-v2.0.2-win-x86-portable-selfcontained.exe` |
 
 > [!TIP]
 > - **Standalone Setup (~50 MB, Recommended)**: Installs the complete self-contained package. Runs on any Windows 10/11 system out-of-the-box without requiring .NET Runtime pre-installed.

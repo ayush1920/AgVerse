@@ -39,12 +39,46 @@ namespace AgVerse
             UpdateLocalizedTexts();
         }
 
+        private int Dpi(int px) => (int)Math.Round(px * (DeviceDpi / 96.0f));
+
+        private static Button CreateUniformButton(
+            string text,
+            int height,
+            Color backColor,
+            Color foreColor,
+            Color borderColor,
+            Color hoverBackColor,
+            bool bold = false,
+            Padding? margin = null)
+        {
+            var btn = new Button
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                Height = height,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false,
+                BackColor = backColor,
+                ForeColor = foreColor,
+                Font = new Font("Segoe UI", 9F, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Point),
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Margin = margin ?? Padding.Empty
+            };
+            btn.FlatAppearance.BorderSize = 1;
+            btn.FlatAppearance.BorderColor = borderColor;
+            btn.FlatAppearance.MouseOverBackColor = hoverBackColor;
+            return btn;
+        }
+
         private void InitializeComponent()
         {
-            Size = new Size(580, 730);
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            Size = new Size(Dpi(580), Dpi(660));
+            MinimumSize = new Size(Dpi(520), Dpi(520));
+            FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Color.FromArgb(247, 248, 250);
             Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
             string iconPath = Path.Combine(AntigravityCore.BaseDir, "icon.ico");
@@ -60,14 +94,15 @@ namespace AgVerse
             var rootPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(12),
+                Padding = new Padding(Dpi(10), Dpi(6), Dpi(10), Dpi(10)),
                 RowCount = 4,
-                ColumnCount = 1
+                ColumnCount = 1,
+                BackColor = Color.Transparent
             };
-            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Language
-            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Create Profile
-            rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Profiles List
-            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Action Buttons
+            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // 0: Language + GitHub
+            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // 1: Create Profile
+            rootPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // 2: Profiles List
+            rootPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // 3: Options & Action Buttons
 
             // 1. Top Header: Language Selector + GitHub Link Button
             var topHeaderPanel = new TableLayoutPanel
@@ -76,14 +111,33 @@ namespace AgVerse
                 AutoSize = true,
                 ColumnCount = 2,
                 RowCount = 1,
-                Margin = new Padding(0, 0, 0, 8)
+                Margin = new Padding(0, 0, 0, Dpi(3)),
+                Padding = Padding.Empty
             };
             topHeaderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             topHeaderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            var langPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = Padding.Empty };
-            var lblLang = new Label { Text = "Language / Idioma:", AutoSize = true, Padding = new Padding(0, 5, 6, 0) };
-            _cbLanguage = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140 };
+            var langPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                WrapContents = false,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            var lblLang = new Label
+            {
+                Text = "Language / Idioma:",
+                AutoSize = true,
+                Padding = new Padding(0, Dpi(4), Dpi(6), 0),
+                Margin = Padding.Empty
+            };
+            _cbLanguage = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = Dpi(135),
+                Margin = new Padding(0, Dpi(1), 0, 0)
+            };
             foreach (var kvp in Localization.LanguageOptions)
             {
                 _cbLanguage.Items.Add(kvp.Key);
@@ -101,17 +155,19 @@ namespace AgVerse
                 TextAlign = ContentAlignment.MiddleCenter,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(246, 248, 250),
+                UseVisualStyleBackColor = false,
+                BackColor = Color.White,
                 ForeColor = Color.FromArgb(36, 41, 47),
-                Height = 27,
-                Width = 92,
+                Height = Dpi(26),
+                Width = Dpi(90),
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                Margin = new Padding(0, 1, 0, 0),
-                Padding = new Padding(18, 0, 0, 0)
+                Margin = Padding.Empty,
+                Padding = new Padding(Dpi(18), 0, 0, 0)
             };
             _btnGitHub.FlatAppearance.BorderColor = Color.FromArgb(208, 215, 222);
             _btnGitHub.FlatAppearance.BorderSize = 1;
+            _btnGitHub.FlatAppearance.MouseOverBackColor = Color.FromArgb(243, 244, 246);
             _btnGitHub.Paint += (s, pe) =>
             {
                 pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -145,18 +201,50 @@ namespace AgVerse
             topHeaderPanel.Controls.Add(_btnGitHub, 1, 0);
             rootPanel.Controls.Add(topHeaderPanel, 0, 0);
 
-            // 2. Create Profile GroupBox
-            _grpCreate = new GroupBox { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(12, 10, 14, 12), Margin = new Padding(0, 0, 0, 6) };
-            var createLayout = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, RowCount = 2 };
+            // 2. Create Profile GroupBox (compact top padding)
+            _grpCreate = new GroupBox
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Padding = new Padding(Dpi(10), Dpi(4), Dpi(10), Dpi(6)),
+                Margin = new Padding(0, 0, 0, Dpi(4))
+            };
+            var createLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                ColumnCount = 3,
+                RowCount = 2,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
+            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Dpi(88)));
 
-            _lblProfileName = new Label { Text = Localization.T("lbl_nome"), AutoSize = true, Anchor = AnchorStyles.Left };
-            _txtProfileName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(8, 0, 8, 0) };
+            _lblProfileName = new Label
+            {
+                Text = Localization.T("lbl_nome"),
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, Dpi(6), 0)
+            };
+            _txtProfileName = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, Dpi(1), Dpi(6), Dpi(1))
+            };
             _txtProfileName.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { OnAddProfileClick(s, e); e.SuppressKeyPress = true; } };
 
-            _btnAddProfile = new Button { Text = Localization.T("btn_add"), Dock = DockStyle.Fill, Height = 28, Margin = new Padding(4, 0, 8, 0) };
+            _btnAddProfile = CreateUniformButton(
+                Localization.T("btn_add"),
+                Dpi(25),
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: Padding.Empty);
             _btnAddProfile.Click += OnAddProfileClick;
 
             _lblInfoShared = new Label
@@ -164,10 +252,8 @@ namespace AgVerse
                 Text = Localization.T("info_default_shared"),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.DimGray,
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Height = 32,
-                Margin = new Padding(2, 6, 8, 0)
+                AutoSize = true,
+                Margin = new Padding(0, Dpi(4), 0, 0)
             };
 
             createLayout.Controls.Add(_lblProfileName, 0, 0);
@@ -178,9 +264,21 @@ namespace AgVerse
             _grpCreate.Controls.Add(createLayout);
             rootPanel.Controls.Add(_grpCreate, 0, 1);
 
-            // 3. Profiles List GroupBox
-            _grpProfiles = new GroupBox { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 8), Margin = new Padding(0, 4, 0, 8) };
-            var profilesLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
+            // 3. Profiles List GroupBox (expanded vertical space)
+            _grpProfiles = new GroupBox
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(Dpi(10), Dpi(6), Dpi(10), Dpi(8)),
+                Margin = new Padding(0, 0, 0, Dpi(6))
+            };
+            var profilesLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 3,
+                ColumnCount = 1,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
             profilesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             profilesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             profilesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -191,7 +289,10 @@ namespace AgVerse
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point),
                 IntegralHeight = false,
                 DrawMode = DrawMode.OwnerDrawFixed,
-                ItemHeight = 28
+                ItemHeight = Dpi(26),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White,
+                Margin = Padding.Empty
             };
             _lstProfiles.DrawItem += OnDrawProfileItem;
             _lstProfiles.DoubleClick += (s, e) => OnLaunchProfileClick(s, e);
@@ -202,20 +303,40 @@ namespace AgVerse
             _lblTokenInfo = new Label
             {
                 Text = "🔑 Account: Select a profile...",
-                AutoSize = true,
+                AutoSize = false,
+                AutoEllipsis = true,
+                Dock = DockStyle.Fill,
+                Height = Dpi(20),
+                TextAlign = ContentAlignment.MiddleLeft,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
                 ForeColor = Color.DarkSlateGray,
-                Margin = new Padding(0, 4, 0, 2)
+                Margin = new Padding(0, Dpi(5), 0, Dpi(1))
             };
             profilesLayout.Controls.Add(_lblTokenInfo, 0, 1);
 
             // Profiles directory location bar
-            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Height = 22, ColumnCount = 3, Margin = new Padding(0, 2, 0, 0) };
+            var dirPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                Height = Dpi(20),
+                ColumnCount = 3,
+                Margin = new Padding(0, Dpi(1), 0, 0),
+                Padding = Padding.Empty
+            };
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            var lblDir = new Label { Text = "Path:", AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray, Anchor = AnchorStyles.Left };
+            var lblDir = new Label
+            {
+                Text = "Path:",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, Dpi(4), 0)
+            };
             _lblProfilesPath = new Label
             {
                 Text = AntigravityCore.ProfilesDir,
@@ -225,9 +346,17 @@ namespace AgVerse
                 Font = new Font("Segoe UI", 8F),
                 ForeColor = Color.DarkSlateGray,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                TextAlign = ContentAlignment.MiddleLeft
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin = Padding.Empty
             };
-            var lnkChange = new LinkLabel { Text = "Change...", AutoSize = true, Font = new Font("Segoe UI", 8F), Anchor = AnchorStyles.Right, Padding = new Padding(0, 0, 2, 0) };
+            var lnkChange = new LinkLabel
+            {
+                Text = "Change...",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                Anchor = AnchorStyles.Right,
+                Margin = new Padding(Dpi(6), 0, 0, 0)
+            };
             lnkChange.LinkClicked += OnChangeProfilesFolder;
 
             _toolTip.SetToolTip(_lblProfilesPath, AntigravityCore.ProfilesDir);
@@ -241,8 +370,18 @@ namespace AgVerse
             _grpProfiles.Controls.Add(profilesLayout);
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
-            // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 7, ColumnCount = 1 };
+            // 4. Options & Uniform 2-Column Action Grid
+            var bottomPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                RowCount = 2,
+                ColumnCount = 1,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            bottomPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            bottomPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             _chkVerbose = new CheckBox
             {
@@ -250,82 +389,105 @@ namespace AgVerse
                 AutoSize = true,
                 Checked = AntigravityCore.GetVerboseModeConfig(),
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                Margin = new Padding(2, 2, 0, 6)
+                Margin = new Padding(Dpi(2), 0, 0, Dpi(6))
             };
             _chkVerbose.CheckedChanged += OnVerboseModeChanged;
 
-            _btnLaunch = new Button
+            var btnGrid = new TableLayoutPanel
             {
-                Text = Localization.T("btn_abrir"),
                 Dock = DockStyle.Fill,
-                Height = 38,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                BackColor = Color.FromArgb(230, 235, 245),
-                Margin = new Padding(0, 2, 0, 4)
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 3,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
             };
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            int btnHeight = Dpi(34);
+            int colGap = Dpi(4);
+            int rowGap = Dpi(6);
+
+            _btnLaunch = CreateUniformButton(
+                Localization.T("btn_abrir"),
+                btnHeight,
+                Color.FromArgb(9, 105, 218),
+                Color.White,
+                Color.FromArgb(8, 90, 190),
+                Color.FromArgb(7, 88, 188),
+                bold: true,
+                margin: new Padding(0, 0, colGap, rowGap));
             _btnLaunch.Click += OnLaunchProfileClick;
 
-            _btnSetDefault = new Button
-            {
-                Text = Localization.T("btn_set_default"),
-                Dock = DockStyle.Fill,
-                Height = 34,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                BackColor = Color.FromArgb(254, 250, 235),
-                ForeColor = Color.FromArgb(140, 90, 0),
-                Margin = new Padding(0, 2, 0, 4)
-            };
+            _btnSetDefault = CreateUniformButton(
+                Localization.T("btn_set_default"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(146, 94, 0),
+                Color.FromArgb(224, 198, 124),
+                Color.FromArgb(255, 250, 235),
+                bold: true,
+                margin: new Padding(colGap, 0, 0, rowGap));
             _btnSetDefault.Click += OnSetDefaultClick;
 
-            _btnManageProjects = new Button
-            {
-                Text = "📂 " + Localization.T("btn_proj"),
-                Dock = DockStyle.Fill,
-                Height = 36,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                BackColor = Color.FromArgb(240, 245, 255),
-                Margin = new Padding(0, 2, 0, 4)
-            };
+            _btnManageProjects = CreateUniformButton(
+                "📂 " + Localization.T("btn_proj"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: new Padding(0, 0, colGap, rowGap));
             _btnManageProjects.Click += OnManageProjectsClick;
 
-            _btnRefreshToken = new Button
-            {
-                Text = "🔄 " + Localization.T("btn_refresh_token"),
-                Dock = DockStyle.Fill,
-                Height = 32,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                BackColor = Color.FromArgb(245, 248, 255),
-                Margin = new Padding(0, 2, 0, 4)
-            };
+            _btnRefreshToken = CreateUniformButton(
+                "🔄 " + Localization.T("btn_refresh_token"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: new Padding(colGap, 0, 0, rowGap));
             _btnRefreshToken.Click += OnRefreshTokenClick;
 
-            _btnShortcut = new Button
-            {
-                Text = Localization.T("btn_atalho"),
-                Dock = DockStyle.Fill,
-                Height = 30,
-                Margin = new Padding(0, 2, 0, 4)
-            };
+            _btnShortcut = CreateUniformButton(
+                Localization.T("btn_atalho"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: new Padding(0, 0, colGap, 0));
             _btnShortcut.Click += OnCreateShortcutClick;
 
-            _btnDelete = new Button
-            {
-                Text = Localization.T("btn_del"),
-                Dock = DockStyle.Fill,
-                Height = 30,
-                ForeColor = Color.DarkRed,
-                Margin = new Padding(0, 2, 0, 2)
-            };
+            _btnDelete = CreateUniformButton(
+                Localization.T("btn_del"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(207, 34, 46),
+                Color.FromArgb(238, 195, 200),
+                Color.FromArgb(255, 240, 242),
+                bold: false,
+                margin: new Padding(colGap, 0, 0, 0));
             _btnDelete.Click += OnDeleteProfileClick;
 
-            btnPanel.Controls.Add(_chkVerbose, 0, 0);
-            btnPanel.Controls.Add(_btnLaunch, 0, 1);
-            btnPanel.Controls.Add(_btnSetDefault, 0, 2);
-            btnPanel.Controls.Add(_btnManageProjects, 0, 3);
-            btnPanel.Controls.Add(_btnRefreshToken, 0, 4);
-            btnPanel.Controls.Add(_btnShortcut, 0, 5);
-            btnPanel.Controls.Add(_btnDelete, 0, 6);
-            rootPanel.Controls.Add(btnPanel, 0, 3);
+            btnGrid.Controls.Add(_btnLaunch, 0, 0);
+            btnGrid.Controls.Add(_btnSetDefault, 1, 0);
+            btnGrid.Controls.Add(_btnManageProjects, 0, 1);
+            btnGrid.Controls.Add(_btnRefreshToken, 1, 1);
+            btnGrid.Controls.Add(_btnShortcut, 0, 2);
+            btnGrid.Controls.Add(_btnDelete, 1, 2);
+
+            bottomPanel.Controls.Add(_chkVerbose, 0, 0);
+            bottomPanel.Controls.Add(btnGrid, 0, 1);
+            rootPanel.Controls.Add(bottomPanel, 0, 3);
 
             Controls.Add(rootPanel);
         }
