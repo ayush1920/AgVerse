@@ -20,6 +20,8 @@ namespace MultiGravity
         private Dictionary<string, ProjectInfo> _activeProjects = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, ProjectInfo> _archivedProjects = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, HashSet<string>> _profileExclusionsMap = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _checkedProjectIds = new(StringComparer.OrdinalIgnoreCase);
+        private bool _isPopulating = false;
 
         private FilterMode _currentFilter = FilterMode.All;
         private string _searchFilter = "";
@@ -221,10 +223,34 @@ namespace MultiGravity
             _btnPillExcluded = CreatePillButton("🟡 Excluded (0)", FilterMode.Excluded);
             _btnPillArchived = CreatePillButton("⚪ Archived (0)", FilterMode.Archived);
 
+            var btnCheckAll = new Button
+            {
+                Text = "☑️ Check All",
+                Height = 28,
+                AutoSize = true,
+                Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(14, 0, 4, 0),
+                BackColor = Color.FromArgb(245, 245, 245)
+            };
+            btnCheckAll.Click += (s, e) => SetAllVisibleChecked(true);
+
+            var btnUncheckAll = new Button
+            {
+                Text = "⬜ Clear",
+                Height = 28,
+                AutoSize = true,
+                Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(0, 0, 6, 0),
+                BackColor = Color.FromArgb(245, 245, 245)
+            };
+            btnUncheckAll.Click += (s, e) => SetAllVisibleChecked(false);
+
             pillsPanel.Controls.Add(_btnPillAll);
             pillsPanel.Controls.Add(_btnPillShared);
             pillsPanel.Controls.Add(_btnPillExcluded);
             pillsPanel.Controls.Add(_btnPillArchived);
+            pillsPanel.Controls.Add(btnCheckAll);
+            pillsPanel.Controls.Add(btnUncheckAll);
             rootLayout.Controls.Add(pillsPanel, 0, 1);
 
             // 3. Projects ListView Table
@@ -234,17 +260,19 @@ namespace MultiGravity
                 View = View.Details,
                 FullRowSelect = true,
                 GridLines = true,
-                MultiSelect = false,
+                MultiSelect = true,
+                CheckBoxes = true,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point)
             };
             EnableDoubleBuffer(_lvProjects);
 
-            _lvProjects.Columns.Add("Status", 110, HorizontalAlignment.Left);
+            _lvProjects.Columns.Add("Status", 135, HorizontalAlignment.Left);
             _lvProjects.Columns.Add("Project Name", 190, HorizontalAlignment.Left);
             _lvProjects.Columns.Add("Workspace Folder", 380, HorizontalAlignment.Left);
             _lvProjects.Columns.Add("ID", 90, HorizontalAlignment.Left);
 
             _lvProjects.SelectedIndexChanged += OnSelectedProjectChanged;
+            _lvProjects.ItemChecked += OnItemChecked;
             _lvProjects.DoubleClick += (s, e) => OnOpenFolderClick(s, e);
             _lvProjects.Resize += (s, e) => AdjustColumnWidths();
             _lvProjects.SizeChanged += (s, e) => AdjustColumnWidths();
@@ -256,15 +284,20 @@ namespace MultiGravity
 
             // Context Menu
             _contextMenu = new ContextMenuStrip();
-            var mnuShare = new ToolStripMenuItem("🟢 Set as Shared (Include)", null, (s, e) => SetSelectedProjectExclusion(false));
-            var mnuExclude = new ToolStripMenuItem("🟡 Exclude from this Profile", null, (s, e) => SetSelectedProjectExclusion(true));
+            var mnuShare = new ToolStripMenuItem("🟢 Set as Shared (Include)", null, (s, e) => SetSelectedProjectsExclusion(false));
+            var mnuExclude = new ToolStripMenuItem("🟡 Exclude from this Profile", null, (s, e) => SetSelectedProjectsExclusion(true));
             var mnuArchive = new ToolStripMenuItem("📦 Archive Globally (Hide from All)", null, (s, e) => OnArchiveRestoreClick(s, e));
+            var mnuCheckAll = new ToolStripMenuItem("☑️ Check All Visible", null, (s, e) => SetAllVisibleChecked(true));
+            var mnuClearChecks = new ToolStripMenuItem("⬜ Uncheck All", null, (s, e) => SetAllVisibleChecked(false));
             var mnuOpen = new ToolStripMenuItem("📂 Open Folder in Explorer", null, (s, e) => OnOpenFolderClick(s, e));
 
             _contextMenu.Items.Add(mnuShare);
             _contextMenu.Items.Add(mnuExclude);
             _contextMenu.Items.Add(new ToolStripSeparator());
             _contextMenu.Items.Add(mnuArchive);
+            _contextMenu.Items.Add(new ToolStripSeparator());
+            _contextMenu.Items.Add(mnuCheckAll);
+            _contextMenu.Items.Add(mnuClearChecks);
             _contextMenu.Items.Add(new ToolStripSeparator());
             _contextMenu.Items.Add(mnuOpen);
             _lvProjects.ContextMenuStrip = _contextMenu;
@@ -418,6 +451,7 @@ namespace MultiGravity
             if (!string.IsNullOrEmpty(sel) && sel != _currentProfileName)
             {
                 _currentProfileName = sel;
+                _checkedProjectIds.Clear();
                 UpdateProfilePath();
                 ApplyFilterAndRender();
             }
@@ -425,6 +459,7 @@ namespace MultiGravity
 
         private void OnRefreshClick(object? sender, EventArgs e)
         {
+            _checkedProjectIds.Clear();
             ReloadProjectsData();
             LoadAllExclusions();
             ApplyFilterAndRender();
@@ -476,44 +511,91 @@ namespace MultiGravity
                 }
             }
 
-            _lvProjects.BeginUpdate();
-            _lvProjects.Items.Clear();
-
-            for (int i = 0; i < itemsToDisplay.Count; i++)
+            _isPopulating = true;
+            try
             {
-                var (p, statusText, statusColor) = itemsToDisplay[i];
-                var item = new ListViewItem(statusText)
-                {
-                    UseItemStyleForSubItems = false,
-                    Tag = p
-                };
-                item.SubItems[0].ForeColor = statusColor;
-                item.SubItems[0].Font = new Font(_lvProjects.Font, FontStyle.Bold);
+                _lvProjects.BeginUpdate();
+                _lvProjects.Items.Clear();
 
-                var subName = item.SubItems.Add(p.Name);
-                if (p.IsArchived)
+                for (int i = 0; i < itemsToDisplay.Count; i++)
                 {
-                    subName.ForeColor = Color.DimGray;
+                    var (p, statusText, statusColor) = itemsToDisplay[i];
+                    var item = new ListViewItem(statusText)
+                    {
+                        UseItemStyleForSubItems = false,
+                        Tag = p,
+                        Checked = _checkedProjectIds.Contains(p.Id)
+                    };
+                    item.SubItems[0].ForeColor = statusColor;
+                    item.SubItems[0].Font = new Font(_lvProjects.Font, FontStyle.Bold);
+
+                    var subName = item.SubItems.Add(p.Name);
+                    if (p.IsArchived)
+                    {
+                        subName.ForeColor = Color.DimGray;
+                    }
+                    else
+                    {
+                        subName.Font = new Font(_lvProjects.Font, FontStyle.Bold);
+                    }
+
+                    item.SubItems.Add(string.IsNullOrEmpty(p.FolderPath) ? "(Unknown path)" : p.FolderPath);
+                    item.SubItems.Add(p.Id.Length > 8 ? p.Id.Substring(0, 8) + "..." : p.Id);
+
+                    // Alternating row background
+                    if (i % 2 == 1)
+                    {
+                        item.BackColor = Color.FromArgb(248, 250, 252);
+                    }
+
+                    _lvProjects.Items.Add(item);
                 }
-                else
-                {
-                    subName.Font = new Font(_lvProjects.Font, FontStyle.Bold);
-                }
 
-                item.SubItems.Add(string.IsNullOrEmpty(p.FolderPath) ? "(Unknown path)" : p.FolderPath);
-                item.SubItems.Add(p.Id.Length > 8 ? p.Id.Substring(0, 8) + "..." : p.Id);
-
-                // Alternating row background
-                if (i % 2 == 1)
-                {
-                    item.BackColor = Color.FromArgb(248, 250, 252);
-                }
-
-                _lvProjects.Items.Add(item);
+                _lvProjects.EndUpdate();
+            }
+            finally
+            {
+                _isPopulating = false;
             }
 
-            _lvProjects.EndUpdate();
             AdjustColumnWidths();
+            UpdateActionButtons();
+        }
+
+        private void OnItemChecked(object? sender, ItemCheckedEventArgs e)
+        {
+            if (_isPopulating) return;
+            if (e.Item?.Tag is ProjectInfo p)
+            {
+                if (e.Item.Checked)
+                    _checkedProjectIds.Add(p.Id);
+                else
+                    _checkedProjectIds.Remove(p.Id);
+            }
+            UpdateActionButtons();
+        }
+
+        private void SetAllVisibleChecked(bool check)
+        {
+            _isPopulating = true;
+            _lvProjects.BeginUpdate();
+            try
+            {
+                foreach (ListViewItem item in _lvProjects.Items)
+                {
+                    item.Checked = check;
+                    if (item.Tag is ProjectInfo p)
+                    {
+                        if (check) _checkedProjectIds.Add(p.Id);
+                        else _checkedProjectIds.Remove(p.Id);
+                    }
+                }
+            }
+            finally
+            {
+                _lvProjects.EndUpdate();
+                _isPopulating = false;
+            }
             UpdateActionButtons();
         }
 
@@ -556,132 +638,241 @@ namespace MultiGravity
             UpdateActionButtons();
         }
 
+        private List<ProjectInfo> GetTargetProjects()
+        {
+            var list = new List<ProjectInfo>();
+
+            if (_checkedProjectIds.Count > 0)
+            {
+                foreach (var id in _checkedProjectIds)
+                {
+                    if (_activeProjects.TryGetValue(id, out var p)) list.Add(p);
+                    else if (_archivedProjects.TryGetValue(id, out var ap)) list.Add(ap);
+                }
+            }
+
+            if (list.Count == 0 && _lvProjects.SelectedItems.Count > 0)
+            {
+                foreach (ListViewItem item in _lvProjects.SelectedItems)
+                {
+                    if (item.Tag is ProjectInfo p) list.Add(p);
+                }
+            }
+
+            return list;
+        }
+
         private ProjectInfo? GetSelectedProject()
         {
-            if (_lvProjects.SelectedItems.Count == 0) return null;
-            return _lvProjects.SelectedItems[0].Tag as ProjectInfo;
+            var list = GetTargetProjects();
+            return list.Count > 0 ? list[0] : null;
         }
 
         private void UpdateActionButtons()
         {
-            var p = GetSelectedProject();
-            if (p == null)
+            var targets = GetTargetProjects();
+            if (targets.Count == 0)
             {
                 _btnToggle.Enabled = false;
                 _btnToggle.Text = "🟡 Exclude from Profile";
+                _btnToggle.BackColor = SystemColors.Control;
                 _btnArchiveRestore.Enabled = false;
                 _btnArchiveRestore.Text = "📦 Archive Globally";
+                _btnArchiveRestore.BackColor = SystemColors.Control;
                 _btnOpenFolder.Enabled = false;
                 return;
             }
 
-            _btnOpenFolder.Enabled = !string.IsNullOrEmpty(p.FolderPath) && Directory.Exists(p.FolderPath);
+            _btnOpenFolder.Enabled = (targets.Count == 1) && !string.IsNullOrEmpty(targets[0].FolderPath) && Directory.Exists(targets[0].FolderPath);
 
-            if (p.IsArchived)
+            var exclusions = GetCurrentProfileExclusions();
+            int activeCount = targets.Count(t => !t.IsArchived);
+            int archivedCount = targets.Count(t => t.IsArchived);
+            int excludedCount = targets.Count(t => !t.IsArchived && exclusions.Contains(t.Id));
+            int sharedCount = targets.Count(t => !t.IsArchived && !exclusions.Contains(t.Id));
+
+            if (activeCount > 0)
             {
-                _btnToggle.Enabled = false;
-                _btnToggle.Text = "🟡 Exclude from Profile";
-
-                _btnArchiveRestore.Enabled = true;
-                _btnArchiveRestore.Text = "🔄 Restore from Archive";
-                _btnArchiveRestore.BackColor = Color.FromArgb(235, 245, 235);
-            }
-            else
-            {
-                var exclusions = GetCurrentProfileExclusions();
-                bool isExcluded = exclusions.Contains(p.Id);
-
                 _btnToggle.Enabled = true;
-                if (isExcluded)
+                if (targets.Count == 1)
                 {
-                    _btnToggle.Text = "🟢 Share with Profile";
-                    _btnToggle.BackColor = Color.FromArgb(235, 245, 235);
+                    var p = targets[0];
+                    if (exclusions.Contains(p.Id))
+                    {
+                        _btnToggle.Text = "🟢 Share with Profile";
+                        _btnToggle.BackColor = Color.FromArgb(235, 245, 235);
+                    }
+                    else
+                    {
+                        _btnToggle.Text = "🟡 Exclude from Profile";
+                        _btnToggle.BackColor = Color.FromArgb(255, 245, 230);
+                    }
                 }
                 else
                 {
-                    _btnToggle.Text = "🟡 Exclude from Profile";
-                    _btnToggle.BackColor = Color.FromArgb(255, 245, 230);
+                    if (sharedCount > 0)
+                    {
+                        _btnToggle.Text = $"🟡 Exclude Checked ({sharedCount})";
+                        _btnToggle.BackColor = Color.FromArgb(255, 245, 230);
+                    }
+                    else
+                    {
+                        _btnToggle.Text = $"🟢 Share Checked ({excludedCount})";
+                        _btnToggle.BackColor = Color.FromArgb(235, 245, 235);
+                    }
                 }
+            }
+            else
+            {
+                _btnToggle.Enabled = false;
+                _btnToggle.Text = "🟡 Exclude from Profile";
+                _btnToggle.BackColor = SystemColors.Control;
+            }
 
+            if (targets.Count == 1)
+            {
+                var p = targets[0];
                 _btnArchiveRestore.Enabled = true;
-                _btnArchiveRestore.Text = "📦 Archive Globally";
-                _btnArchiveRestore.BackColor = Color.FromArgb(250, 240, 235);
+                if (p.IsArchived)
+                {
+                    _btnArchiveRestore.Text = "🔄 Restore from Archive";
+                    _btnArchiveRestore.BackColor = Color.FromArgb(235, 245, 235);
+                }
+                else
+                {
+                    _btnArchiveRestore.Text = "📦 Archive Globally";
+                    _btnArchiveRestore.BackColor = Color.FromArgb(250, 240, 235);
+                }
+            }
+            else
+            {
+                if (activeCount > 0 && archivedCount == 0)
+                {
+                    _btnArchiveRestore.Enabled = true;
+                    _btnArchiveRestore.Text = $"📦 Archive Checked ({activeCount})";
+                    _btnArchiveRestore.BackColor = Color.FromArgb(250, 240, 235);
+                }
+                else if (archivedCount > 0 && activeCount == 0)
+                {
+                    _btnArchiveRestore.Enabled = true;
+                    _btnArchiveRestore.Text = $"🔄 Restore Checked ({archivedCount})";
+                    _btnArchiveRestore.BackColor = Color.FromArgb(235, 245, 235);
+                }
+                else
+                {
+                    _btnArchiveRestore.Enabled = true;
+                    _btnArchiveRestore.Text = $"📦 Archive/Restore ({targets.Count})";
+                    _btnArchiveRestore.BackColor = Color.FromArgb(245, 245, 245);
+                }
             }
         }
 
         private void OnToggleExcludeClick(object? sender, EventArgs e)
         {
-            var p = GetSelectedProject();
-            if (p == null || p.IsArchived) return;
+            var targets = GetTargetProjects().Where(t => !t.IsArchived).ToList();
+            if (targets.Count == 0) return;
 
             var exclusions = GetCurrentProfileExclusions();
-            if (exclusions.Contains(p.Id))
+            if (targets.Count == 1)
             {
-                exclusions.Remove(p.Id);
+                var p = targets[0];
+                if (exclusions.Contains(p.Id)) exclusions.Remove(p.Id);
+                else exclusions.Add(p.Id);
             }
             else
             {
-                exclusions.Add(p.Id);
+                bool anyShared = targets.Any(t => !exclusions.Contains(t.Id));
+                foreach (var t in targets)
+                {
+                    if (anyShared) exclusions.Add(t.Id);
+                    else exclusions.Remove(t.Id);
+                }
+                _checkedProjectIds.Clear();
             }
 
             ApplyFilterAndRender();
         }
 
-        private void SetSelectedProjectExclusion(bool exclude)
+        private void SetSelectedProjectsExclusion(bool exclude)
         {
-            var p = GetSelectedProject();
-            if (p == null || p.IsArchived) return;
+            var targets = GetTargetProjects().Where(t => !t.IsArchived).ToList();
+            if (targets.Count == 0) return;
 
             var exclusions = GetCurrentProfileExclusions();
-            if (exclude) exclusions.Add(p.Id);
-            else exclusions.Remove(p.Id);
+            foreach (var t in targets)
+            {
+                if (exclude) exclusions.Add(t.Id);
+                else exclusions.Remove(t.Id);
+            }
+            _checkedProjectIds.Clear();
 
             ApplyFilterAndRender();
         }
 
         private void OnArchiveRestoreClick(object? sender, EventArgs e)
         {
-            var p = GetSelectedProject();
-            if (p == null) return;
+            var targets = GetTargetProjects();
+            if (targets.Count == 0) return;
 
-            if (p.IsArchived)
+            var activeTargets = targets.Where(t => !t.IsArchived).ToList();
+            var archivedTargets = targets.Where(t => t.IsArchived).ToList();
+
+            if (activeTargets.Count > 0 && archivedTargets.Count == 0)
             {
-                // Unarchive / Restore
-                var confirm = MessageBox.Show(
-                    this,
-                    Localization.T("confirma_unarchive", p.Name),
-                    Localization.T("t_confirma"),
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
+                string msg = activeTargets.Count == 1
+                    ? Localization.T("confirma_archive", activeTargets[0].Name)
+                    : $"Are you sure you want to archive {activeTargets.Count} project(s) globally?\nThey will be removed from Antigravity across ALL profiles.";
 
+                var confirm = MessageBox.Show(this, msg, Localization.T("t_confirma"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirm == DialogResult.Yes)
                 {
-                    if (AntigravityCore.UnarchiveProject(p.Id))
+                    int count = 0;
+                    foreach (var t in activeTargets)
                     {
-                        ReloadProjectsData();
-                        ApplyFilterAndRender();
-                        MessageBox.Show(this, Localization.T("sucesso_unarchived", p.Name), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        if (AntigravityCore.ArchiveProject(t.Id)) count++;
                     }
+                    _checkedProjectIds.Clear();
+                    ReloadProjectsData();
+                    ApplyFilterAndRender();
+                    MessageBox.Show(this, $"{count} project(s) archived successfully.", Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            else if (archivedTargets.Count > 0 && activeTargets.Count == 0)
+            {
+                string msg = archivedTargets.Count == 1
+                    ? Localization.T("confirma_unarchive", archivedTargets[0].Name)
+                    : $"Restore {archivedTargets.Count} project(s) to active status?\nThey will be available across all profiles again.";
+
+                var confirm = MessageBox.Show(this, msg, Localization.T("t_confirma"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm == DialogResult.Yes)
+                {
+                    int count = 0;
+                    foreach (var t in archivedTargets)
+                    {
+                        if (AntigravityCore.UnarchiveProject(t.Id)) count++;
+                    }
+                    _checkedProjectIds.Clear();
+                    ReloadProjectsData();
+                    ApplyFilterAndRender();
+                    MessageBox.Show(this, $"{count} project(s) restored successfully.", Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             else
             {
-                // Archive Globally
-                var confirm = MessageBox.Show(
-                    this,
-                    Localization.T("confirma_archive", p.Name),
+                var confirm = MessageBox.Show(this,
+                    $"Process {targets.Count} project(s)?\n- {activeTargets.Count} will be archived\n- {archivedTargets.Count} will be restored",
                     Localization.T("t_confirma"),
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
                 if (confirm == DialogResult.Yes)
                 {
-                    if (AntigravityCore.ArchiveProject(p.Id))
-                    {
-                        ReloadProjectsData();
-                        ApplyFilterAndRender();
-                        MessageBox.Show(this, Localization.T("sucesso_archived", p.Name), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
+                    foreach (var t in activeTargets) AntigravityCore.ArchiveProject(t.Id);
+                    foreach (var t in archivedTargets) AntigravityCore.UnarchiveProject(t.Id);
+                    _checkedProjectIds.Clear();
+                    ReloadProjectsData();
+                    ApplyFilterAndRender();
+                    MessageBox.Show(this, "Batch archive/restore completed successfully.", Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
