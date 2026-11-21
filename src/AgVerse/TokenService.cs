@@ -122,7 +122,7 @@ namespace AgVerse
             }
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("antigravity/hub/2.34.0");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "antigravity/hub/2.34.0");
 
             var formParams = new Dictionary<string, string>
             {
@@ -334,7 +334,7 @@ namespace AgVerse
 
             // Exchange authorization code for tokens
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("antigravity/hub/2.34.0");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "antigravity/hub/2.34.0");
 
             var tokenExchangeParams = new Dictionary<string, string>
             {

@@ -23,14 +23,16 @@ AgVerse allows you to run multiple concurrent instances of Antigravity, each log
 
 Official standalone installers and portable single-file binaries are available directly under **[Releases](https://github.com/ayush1920/AgVerse/releases)**:
 
-| Architecture | Setup Installer (Inno Setup) | Portable (Lightweight, ~450 KB) | Portable (Self-Contained, ~50 MB) |
-| :--- | :--- | :--- | :--- |
-| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.0-x64.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.0-win-x64-portable.exe` | `AgVerse-v2.0.0-win-x64-portable-selfcontained.exe` |
-| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.0-x86.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.0-win-x86-portable.exe` | `AgVerse-v2.0.0-win-x86-portable-selfcontained.exe` |
+| Architecture | Standalone Setup (~50 MB, Recommended) | Lightweight Setup (~2 MB) | Portable (Lightweight, ~450 KB) | Portable (Self-Contained, ~50 MB) |
+| :--- | :--- | :--- | :--- | :--- |
+| **x64 (64-bit Windows)** | [AgVerse-Setup-v2.0.1-x64.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.1-x64-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.1-win-x64-portable.exe` | `AgVerse-v2.0.1-win-x64-portable-selfcontained.exe` |
+| **x86 (32-bit Windows)** | [AgVerse-Setup-v2.0.1-x86.exe](https://github.com/ayush1920/AgVerse/releases) | [AgVerse-Setup-v2.0.1-x86-lightweight.exe](https://github.com/ayush1920/AgVerse/releases) | `AgVerse-v2.0.1-win-x86-portable.exe` | `AgVerse-v2.0.1-win-x86-portable-selfcontained.exe` |
 
 > [!TIP]
-> - **Lightweight Portable (~450 KB)**: Requires Windows 10/11 with .NET Desktop Runtime installed. Starts instantly with zero memory bloat.
-> - **Self-Contained Portable (~50 MB)**: Bundles the entire .NET runtime engine. Runs on any clean Windows machine out-of-the-box with zero prerequisites.
+> - **Standalone Setup (~50 MB, Recommended)**: Installs the complete self-contained package. Runs on any Windows 10/11 system out-of-the-box without requiring .NET Runtime pre-installed.
+> - **Lightweight Setup (~2 MB)**: Installs the compact ~470 KB binary for systems with .NET 9 Desktop Runtime already installed.
+> - **Self-Contained Portable (~50 MB)**: Standalone single-file executable that requires zero installation and zero prerequisites.
+> - **Lightweight Portable (~450 KB)**: Instant portable single-file executable requiring installed .NET 9 Desktop Runtime.
 
 ### Installer Features
 - **Zero UAC Elevation Required**: Installs per-user cleanly to standard local directories without administrator permission prompts.
@@ -124,8 +126,13 @@ dotnet publish src/AgVerse/AgVerse.csproj -c Release -r win-x86 --self-contained
 
 ### Build Setup Installers
 ```powershell
-iscc.exe /DArch=x64 installer/AgVerse_Setup.iss
-iscc.exe /DArch=x86 installer/AgVerse_Setup.iss
+# Standalone Setup Installers (bundles self-contained runtime, ~50 MB, Recommended)
+iscc.exe /DArch=x64 /DStandalone=1 installer/AgVerse_Setup.iss
+iscc.exe /DArch=x86 /DStandalone=1 installer/AgVerse_Setup.iss
+
+# Lightweight Setup Installers (~2 MB)
+iscc.exe /DArch=x64 /DStandalone=0 installer/AgVerse_Setup.iss
+iscc.exe /DArch=x86 /DStandalone=0 installer/AgVerse_Setup.iss
 ```
 
 ---
