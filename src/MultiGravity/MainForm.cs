@@ -17,6 +17,7 @@ namespace MultiGravity
 
         private GroupBox _grpProfiles = null!;
         private ListBox _lstProfiles = null!;
+        private Label _lblProfilesPath = null!;
 
         private Button _btnLaunch = null!;
         private Button _btnExclusions = null!;
@@ -32,7 +33,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Size = new Size(520, 570);
+            Size = new Size(540, 600);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -77,17 +78,17 @@ namespace MultiGravity
             rootPanel.Controls.Add(langPanel, 0, 0);
 
             // 2. Create Profile GroupBox
-            _grpCreate = new GroupBox { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(10) };
+            _grpCreate = new GroupBox { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(12, 10, 14, 12), Margin = new Padding(0, 0, 0, 6) };
             var createLayout = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, RowCount = 2 };
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            createLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
 
             _lblProfileName = new Label { Text = Localization.T("lbl_nome"), AutoSize = true, Anchor = AnchorStyles.Left };
-            _txtProfileName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(6, 0, 6, 0) };
+            _txtProfileName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(8, 0, 8, 0) };
             _txtProfileName.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { OnAddProfileClick(s, e); e.SuppressKeyPress = true; } };
 
-            _btnAddProfile = new Button { Text = Localization.T("btn_add"), Width = 90, Height = 28 };
+            _btnAddProfile = new Button { Text = Localization.T("btn_add"), Dock = DockStyle.Fill, Height = 28, Margin = new Padding(4, 0, 8, 0) };
             _btnAddProfile.Click += OnAddProfileClick;
 
             _lblInfoShared = new Label
@@ -95,8 +96,10 @@ namespace MultiGravity
                 Text = Localization.T("info_default_shared"),
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.DimGray,
-                AutoSize = true,
-                Margin = new Padding(0, 6, 0, 0)
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                Height = 32,
+                Margin = new Padding(2, 6, 8, 0)
             };
 
             createLayout.Controls.Add(_lblProfileName, 0, 0);
@@ -108,7 +111,11 @@ namespace MultiGravity
             rootPanel.Controls.Add(_grpCreate, 0, 1);
 
             // 3. Profiles List GroupBox
-            _grpProfiles = new GroupBox { Dock = DockStyle.Fill, Padding = new Padding(10), Margin = new Padding(0, 8, 0, 8) };
+            _grpProfiles = new GroupBox { Dock = DockStyle.Fill, Padding = new Padding(10, 10, 10, 8), Margin = new Padding(0, 4, 0, 8) };
+            var profilesLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1 };
+            profilesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            profilesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
             _lstProfiles = new ListBox
             {
                 Dock = DockStyle.Fill,
@@ -116,7 +123,25 @@ namespace MultiGravity
                 IntegralHeight = false
             };
             _lstProfiles.DoubleClick += (s, e) => OnLaunchProfileClick(s, e);
-            _grpProfiles.Controls.Add(_lstProfiles);
+            profilesLayout.Controls.Add(_lstProfiles, 0, 0);
+
+            // Profiles directory location bar
+            var dirPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, Margin = new Padding(0, 4, 0, 0) };
+            dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            dirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var lblDir = new Label { Text = "Path:", AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray, Anchor = AnchorStyles.Left };
+            _lblProfilesPath = new Label { Text = AntigravityCore.ProfilesDir, AutoEllipsis = true, AutoSize = false, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 8F), ForeColor = Color.DarkSlateGray, Anchor = AnchorStyles.Left };
+            var lnkChange = new LinkLabel { Text = "Change...", AutoSize = true, Font = new Font("Segoe UI", 8F), Anchor = AnchorStyles.Right, Padding = new Padding(0, 0, 2, 0) };
+            lnkChange.LinkClicked += OnChangeProfilesFolder;
+
+            dirPanel.Controls.Add(lblDir, 0, 0);
+            dirPanel.Controls.Add(_lblProfilesPath, 1, 0);
+            dirPanel.Controls.Add(lnkChange, 2, 0);
+            profilesLayout.Controls.Add(dirPanel, 0, 1);
+
+            _grpProfiles.Controls.Add(profilesLayout);
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
@@ -167,6 +192,23 @@ namespace MultiGravity
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
+        }
+
+        private void OnChangeProfilesFolder(object? sender, LinkLabelLinkClickedEventArgs e)
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "Select MultiGravity Profiles Folder",
+                SelectedPath = AntigravityCore.ProfilesDir,
+                UseDescriptionForTitle = true
+            };
+
+            if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+            {
+                AntigravityCore.SetProfilesDir(dlg.SelectedPath);
+                _lblProfilesPath.Text = dlg.SelectedPath;
+                LoadProfiles();
+            }
         }
 
         private void LoadProfiles()

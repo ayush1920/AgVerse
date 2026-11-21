@@ -13,8 +13,8 @@ namespace MultiGravity
     public static class AntigravityCore
     {
         public static string BaseDir { get; } = DetermineBaseDir();
-        public static string ProfilesDir { get; } = Path.Combine(BaseDir, "profiles");
         public static string ConfigFile { get; } = Path.Combine(BaseDir, "config.json");
+        public static string ProfilesDir { get; private set; } = DetermineProfilesDir();
 
         private static string DetermineBaseDir()
         {
@@ -26,12 +26,113 @@ namespace MultiGravity
                 return parent;
             return appDir;
         }
-        public static string MasterProjectsDir { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".gemini", "config", "projects");
-        public static string MasterAntigravityDir { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".gemini", "antigravity");
+
+        private static string DetermineProfilesDir()
+        {
+            // 1. Check if configured in config.json
+            try
+            {
+                if (File.Exists(ConfigFile))
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
+                    if (doc.RootElement.TryGetProperty("profiles_dir", out var p) && p.GetString() is { Length: > 0 } customPath)
+                    {
+                        if (Directory.Exists(customPath)) return customPath;
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Check local profiles folder in BaseDir (only if it has existing profile folders)
+            string localProfiles = Path.Combine(BaseDir, "profiles");
+            if (Directory.Exists(localProfiles) && Directory.GetDirectories(localProfiles).Length > 0)
+            {
+                return localProfiles;
+            }
+
+            // 3. Check if running inside an active profile (e.g. USERPROFILE contains \profiles\<name>\home)
+            string envProfile = Environment.GetEnvironmentVariable("USERPROFILE") ?? "";
+            int idx = envProfile.IndexOf(@"\profiles\", StringComparison.OrdinalIgnoreCase);
+            if (idx > 0)
+            {
+                string activeProfilesDir = envProfile.Substring(0, idx + @"\profiles".Length);
+                if (Directory.Exists(activeProfilesDir) && Directory.GetDirectories(activeProfilesDir).Length > 0)
+                {
+                    SaveProfilesDirConfig(activeProfilesDir);
+                    return activeProfilesDir;
+                }
+            }
+
+            // 4. Auto-detect existing MultiGravity profiles on the system
+            string userProfile = RealUserHome;
+            string[] commonLocations = new[]
+            {
+                Path.Combine(userProfile, "Downloads", "Programs", "profiles"),
+                Path.Combine(userProfile, "Downloads", "MultiGravity", "profiles"),
+                Path.Combine(userProfile, "Desktop", "MultiGravity", "profiles"),
+                Path.Combine(userProfile, "MultiGravity", "profiles")
+            };
+
+            foreach (string loc in commonLocations)
+            {
+                if (Directory.Exists(loc) && Directory.GetDirectories(loc).Length > 0)
+                {
+                    SaveProfilesDirConfig(loc);
+                    return loc;
+                }
+            }
+
+            // Default fallback to local folder
+            Directory.CreateDirectory(localProfiles);
+            return localProfiles;
+        }
+
+        public static void SetProfilesDir(string path)
+        {
+            if (Directory.Exists(path))
+            {
+                ProfilesDir = path;
+                SaveProfilesDirConfig(path);
+            }
+        }
+
+        private static void SaveProfilesDirConfig(string path)
+        {
+            try
+            {
+                var dict = new Dictionary<string, object>();
+                if (File.Exists(ConfigFile))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(ConfigFile));
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            dict[prop.Name] = prop.Value.Clone();
+                        }
+                    }
+                    catch { }
+                }
+                dict["profiles_dir"] = path;
+                File.WriteAllText(ConfigFile, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+        public static string RealUserHome { get; } = GetRealUserHome();
+        public static string MasterProjectsDir { get; } = Path.Combine(RealUserHome, ".gemini", "config", "projects");
+        public static string MasterAntigravityDir { get; } = Path.Combine(RealUserHome, ".gemini", "antigravity");
+
+        public static string GetRealUserHome()
+        {
+            string username = Environment.UserName;
+            if (!string.IsNullOrEmpty(username))
+            {
+                string sysDrive = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+                string p = Path.Combine(sysDrive, "Users", username);
+                if (Directory.Exists(p)) return p;
+            }
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
 
         public static string AntigravityExePath { get; } = FindAntigravityExe();
 

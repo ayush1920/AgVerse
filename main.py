@@ -11,9 +11,35 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-PROFILES_DIR = os.path.join(BASE_DIR, "profiles")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 MASTER_DIR = os.path.join(os.path.expanduser("~"), ".gemini", "config", "projects")
+
+def obter_diretorio_perfis():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                custom = d.get("profiles_dir")
+                if custom and os.path.exists(custom):
+                    return custom
+        except:
+            pass
+    local = os.path.join(BASE_DIR, "profiles")
+    if os.path.exists(local) and any(os.path.isdir(os.path.join(local, p)) for p in os.listdir(local)):
+        return local
+    user = os.path.expanduser("~")
+    candidatos = [
+        os.path.join(user, "Downloads", "Programs", "profiles"),
+        os.path.join(user, "Downloads", "MultiGravity", "profiles"),
+        os.path.join(user, "Desktop", "MultiGravity", "profiles"),
+        os.path.join(user, "MultiGravity", "profiles")
+    ]
+    for c in candidatos:
+        if os.path.exists(c) and any(os.path.isdir(os.path.join(c, p)) for p in os.listdir(c)):
+            return c
+    return local
+
+PROFILES_DIR = obter_diretorio_perfis()
 
 def get_antigravity_exe():
     local = os.environ.get("LOCALAPPDATA", "")

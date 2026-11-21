@@ -1,6 +1,7 @@
 # Ignore profiles data and user sessions/tokens
 profiles/*
 !profiles/.gitkeep
+config.json
 
 # Python cache
 __pycache__/
