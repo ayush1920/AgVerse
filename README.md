@@ -84,20 +84,23 @@ This vault directly powers our dedicated **[Antigravity Rainmeter Skin (ayush192
 
 ---
 
-### 4. TrafficMonitor Native Desktop Plugin
-AgVerse includes a dedicated native 64-bit C++ plugin for **[TrafficMonitor](https://github.com/zhongyang219/TrafficMonitor)** (the popular Windows floating network & taskbar monitor):
+### 4. TrafficMonitor Native Taskbar Plugin
+AgVerse seamlessly integrates with our dedicated native C++ plugin for **[TrafficMonitor](https://github.com/zhongyang219/TrafficMonitor)** (the popular Windows floating network & taskbar monitor):
 
-- **Taskbar Live Quota**: Seamlessly docks into your Windows taskbar (`AG: G:100% C:50% A:100%`), displaying remaining 5-hour and weekly quotas for Gemini, Claude, and Argon at a glance.
+- **Taskbar Live Quota**: Seamlessly docks into your Windows taskbar with dual-line dynamic rendering:
+  ```text
+  Line 1: G:100% (4h59m)  A:100% (6d23h)
+  Line 2: C:100% (4h59m)
+  ```
 - **Auto Default Account Tracking**: Watches `vault.dat` modification timestamps—whenever you switch the default profile in AgVerse, TrafficMonitor automatically re-reads the vault and updates its displayed stats in real time without restarting.
 - **Rich Hover Tooltip**: Displays comprehensive diagnostics on mouse hover:
   ```text
-  Default Account: Disposable (disposable.gemini@gmail.com)
-  Gemini 5h: 100% (Reset: 4h 59m) | Weekly: 100%
-  Claude 5h: 100% | Weekly: 100% (Reset: 6d 23h)
+  Default Account: Coursera (disposable.coursera@gmail.com)
+  Gemini 5h: 100% (Reset: 4h 59m) | Weekly: 100% (Reset: 6d 23h)
+  Claude 5h: 100% (Reset: 4h 59m) | Weekly: 50% (Reset: 6d 11h)
+  Argon Weekly: 100% (Reset: 6d 23h)
   ```
-- **Deployment**:
-  - Binary DLL: `D:\TrafficMonitor\plugins\AntigravityPlugin.dll`
-  - C++ Source Code: Included under [`src/TrafficMonitorPlugin/`](src/TrafficMonitorPlugin/) with build scripts for Visual Studio 2022.
+- **Download Plugin**: Download pre-compiled native DLLs or view the plugin source code at **[TrafficMonitor_Antigravity_Plugin](https://github.com/ayush1920/TrafficMonitor_Antigravity_Plugin)**.
 
 ---
 
@@ -107,7 +110,6 @@ AgVerse includes a dedicated native 64-bit C++ plugin for **[TrafficMonitor](htt
 - Windows 10 / 11
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Inno Setup 6](https://jrsoftware.org/isdl.php) (for building the setup installers)
-- Visual Studio 2022 C++ Build Tools (only if compiling the TrafficMonitor C++ plugin)
 
 ### Build AgVerse Single-File Binaries
 ```powershell
@@ -124,13 +126,6 @@ dotnet publish src/AgVerse/AgVerse.csproj -c Release -r win-x86 --self-contained
 ```powershell
 iscc.exe /DArch=x64 installer/AgVerse_Setup.iss
 iscc.exe /DArch=x86 installer/AgVerse_Setup.iss
-```
-
-### Build TrafficMonitor Plugin (C++)
-```cmd
-cd src\TrafficMonitorPlugin
-call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-build.bat
 ```
 
 ---
