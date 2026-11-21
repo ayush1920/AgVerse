@@ -109,39 +109,43 @@ namespace MultiGravity
                 RowCount = 4,
                 ColumnCount = 1
             };
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Top bar (Profile + Search + Refresh)
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Filter pills bar
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38)); // Top bar (Profile + Search + Refresh)
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38)); // Filter pills bar
             rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Projects Table
-            rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Action Toolbar
+            rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46)); // Action Toolbar
 
             // 1. Top Bar
-            var topPanel = new TableLayoutPanel
+            var topPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                AutoSize = true,
-                ColumnCount = 5,
-                RowCount = 1,
-                Margin = new Padding(0, 0, 0, 8)
+                Height = 34,
+                Margin = new Padding(0, 0, 0, 4)
             };
-            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // "Target Profile:"
-            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180)); // ComboBox
-            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); // Spacer / Search
-            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220)); // Search box
-            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // Refresh button
+
+            var leftTop = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
 
             var lblProfile = new Label
             {
                 Text = "Target Profile:",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 AutoSize = true,
-                Anchor = AnchorStyles.Left,
-                Padding = new Padding(0, 5, 6, 0)
+                Margin = new Padding(0, 6, 8, 0)
             };
 
             _cbProfile = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Dock = DockStyle.Fill
+                Width = 200,
+                Margin = new Padding(0, 2, 0, 0)
             };
             foreach (var p in _profiles)
             {
@@ -159,11 +163,25 @@ namespace MultiGravity
             }
             _cbProfile.SelectedIndexChanged += OnProfileChanged;
 
+            leftTop.Controls.Add(lblProfile);
+            leftTop.Controls.Add(_cbProfile);
+
+            var rightTop = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+
             _txtSearch = new TextBox
             {
-                Dock = DockStyle.Fill,
+                Width = 220,
                 PlaceholderText = "🔍 Search project or folder...",
-                Margin = new Padding(6, 0, 6, 0)
+                Margin = new Padding(0, 3, 6, 0)
             };
             _txtSearch.TextChanged += (s, e) =>
             {
@@ -174,26 +192,28 @@ namespace MultiGravity
             _btnRefresh = new Button
             {
                 Text = "🔄 " + Localization.T("btn_refresh"),
-                Height = 28,
+                Height = 27,
                 AutoSize = true,
                 Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(0, 1, 0, 0),
                 BackColor = Color.FromArgb(245, 245, 248)
             };
             _btnRefresh.Click += OnRefreshClick;
 
-            topPanel.Controls.Add(lblProfile, 0, 0);
-            topPanel.Controls.Add(_cbProfile, 1, 0);
-            topPanel.Controls.Add(new Panel(), 2, 0);
-            topPanel.Controls.Add(_txtSearch, 3, 0);
-            topPanel.Controls.Add(_btnRefresh, 4, 0);
+            rightTop.Controls.Add(_txtSearch);
+            rightTop.Controls.Add(_btnRefresh);
+
+            topPanel.Controls.Add(rightTop);
+            topPanel.Controls.Add(leftTop);
             rootLayout.Controls.Add(topPanel, 0, 0);
 
             // 2. Filter Pills Bar
             var pillsPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 8)
+                Height = 34,
+                WrapContents = false,
+                Margin = new Padding(0, 0, 0, 4)
             };
 
             _btnPillAll = CreatePillButton("All (0)", FilterMode.All);
@@ -219,13 +239,20 @@ namespace MultiGravity
             };
             EnableDoubleBuffer(_lvProjects);
 
-            _lvProjects.Columns.Add("Status", 115, HorizontalAlignment.Left);
-            _lvProjects.Columns.Add("Project Name", 210, HorizontalAlignment.Left);
-            _lvProjects.Columns.Add("Workspace Folder", 350, HorizontalAlignment.Left);
-            _lvProjects.Columns.Add("ID", 100, HorizontalAlignment.Left);
+            _lvProjects.Columns.Add("Status", 110, HorizontalAlignment.Left);
+            _lvProjects.Columns.Add("Project Name", 190, HorizontalAlignment.Left);
+            _lvProjects.Columns.Add("Workspace Folder", 380, HorizontalAlignment.Left);
+            _lvProjects.Columns.Add("ID", 90, HorizontalAlignment.Left);
 
             _lvProjects.SelectedIndexChanged += OnSelectedProjectChanged;
             _lvProjects.DoubleClick += (s, e) => OnOpenFolderClick(s, e);
+            _lvProjects.Resize += (s, e) => AdjustColumnWidths();
+            _lvProjects.SizeChanged += (s, e) => AdjustColumnWidths();
+            _lvProjects.ColumnWidthChanged += (s, e) =>
+            {
+                if (e.ColumnIndex != 2) AdjustColumnWidths();
+            };
+            Shown += (s, e) => AdjustColumnWidths();
 
             // Context Menu
             _contextMenu = new ContextMenuStrip();
@@ -245,24 +272,30 @@ namespace MultiGravity
             rootLayout.Controls.Add(_lvProjects, 0, 2);
 
             // 4. Action Toolbar
-            var actionPanel = new TableLayoutPanel
+            var actionPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                AutoSize = true,
-                ColumnCount = 2,
-                RowCount = 1,
-                Margin = new Padding(0, 8, 0, 0)
+                Height = 36,
+                Margin = new Padding(0, 6, 0, 0)
             };
-            actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            var leftActions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
+            var leftActions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
             _btnToggle = new Button
             {
                 Text = "🟡 Exclude from Profile",
                 Height = 32,
                 AutoSize = true,
                 Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(0, 0, 8, 0),
                 Enabled = false
             };
             _btnToggle.Click += OnToggleExcludeClick;
@@ -273,6 +306,7 @@ namespace MultiGravity
                 Height = 32,
                 AutoSize = true,
                 Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(0, 0, 8, 0),
                 Enabled = false
             };
             _btnArchiveRestore.Click += OnArchiveRestoreClick;
@@ -283,6 +317,7 @@ namespace MultiGravity
                 Height = 32,
                 AutoSize = true,
                 Padding = new Padding(8, 0, 8, 0),
+                Margin = new Padding(0, 0, 8, 0),
                 Enabled = false
             };
             _btnOpenFolder.Click += OnOpenFolderClick;
@@ -290,34 +325,43 @@ namespace MultiGravity
             leftActions.Controls.Add(_btnToggle);
             leftActions.Controls.Add(_btnArchiveRestore);
             leftActions.Controls.Add(_btnOpenFolder);
-            actionPanel.Controls.Add(leftActions, 0, 0);
 
             var rightActions = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Right,
                 AutoSize = true,
-                FlowDirection = FlowDirection.RightToLeft
-            };
-            var btnClose = new Button
-            {
-                Text = Localization.T("btn_cancelar"),
-                Width = 90,
-                Height = 32,
-                DialogResult = DialogResult.OK
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
             };
             _btnSave = new Button
             {
-                Text = "💾 Save & Apply",
-                Width = 140,
+                Text = "💾 " + Localization.T("btn_salvar"),
                 Height = 32,
-                BackColor = Color.FromArgb(230, 240, 255),
+                AutoSize = true,
+                Padding = new Padding(12, 0, 12, 0),
+                Margin = new Padding(0, 0, 8, 0),
+                BackColor = Color.FromArgb(225, 238, 255),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             _btnSave.Click += OnSaveClick;
 
-            rightActions.Controls.Add(btnClose);
+            var btnClose = new Button
+            {
+                Text = Localization.T("btn_cancelar"),
+                Width = 85,
+                Height = 32,
+                Margin = new Padding(0),
+                DialogResult = DialogResult.OK
+            };
+
             rightActions.Controls.Add(_btnSave);
-            actionPanel.Controls.Add(rightActions, 1, 0);
+            rightActions.Controls.Add(btnClose);
+
+            actionPanel.Controls.Add(rightActions);
+            actionPanel.Controls.Add(leftActions);
 
             rootLayout.Controls.Add(actionPanel, 0, 3);
 
@@ -469,7 +513,34 @@ namespace MultiGravity
             }
 
             _lvProjects.EndUpdate();
+            AdjustColumnWidths();
             UpdateActionButtons();
+        }
+
+        private bool _isAdjustingColumns = false;
+
+        private void AdjustColumnWidths()
+        {
+            if (_isAdjustingColumns || _lvProjects == null || _lvProjects.Columns.Count < 4) return;
+            try
+            {
+                _isAdjustingColumns = true;
+                int clientWidth = _lvProjects.ClientSize.Width;
+                int statusWidth = _lvProjects.Columns[0].Width;
+                int nameWidth = _lvProjects.Columns[1].Width;
+                int idWidth = _lvProjects.Columns[3].Width;
+
+                int remaining = clientWidth - (statusWidth + nameWidth + idWidth) - 4;
+                if (remaining > 150)
+                {
+                    _lvProjects.Columns[2].Width = remaining;
+                }
+            }
+            catch { }
+            finally
+            {
+                _isAdjustingColumns = false;
+            }
         }
 
         private bool MatchesSearch(ProjectInfo p)
