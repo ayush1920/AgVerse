@@ -238,6 +238,8 @@ namespace MultiGravity
         {
             Directory.CreateDirectory(ProfilesDir);
             Localization.Initialize(ConfigFile);
+            VaultBridge.RegisterProfilesDir(ProfilesDir);
+            VaultBridge.SyncAllAccountsAndProfiles();
         }
 
         public static Dictionary<string, ProjectInfo> GetAllProjects()
@@ -628,6 +630,7 @@ namespace MultiGravity
 
         public static List<ProfileInfo> GetProfiles()
         {
+            VaultBridge.SyncAllAccountsAndProfiles();
             var list = new List<ProfileInfo>();
             if (!Directory.Exists(ProfilesDir)) return list;
 
@@ -711,6 +714,7 @@ namespace MultiGravity
             SyncProfileProjects(profilePath);
             EnsureAntigravityJunction(profilePath);
             SetVerboseMode(profilePath, GetVerboseModeConfig());
+            VaultBridge.SyncProfileTokenFromVault(profilePath, name);
 
             var psi = new ProcessStartInfo
             {
@@ -737,6 +741,7 @@ namespace MultiGravity
             SyncProfileProjects(profilePath);
             EnsureAntigravityJunction(profilePath);
             SetVerboseMode(profilePath, GetVerboseModeConfig());
+            VaultBridge.SyncProfileTokenFromVault(profilePath, name);
 
             // 1. Create launch.vbs runner script as fallback
             string runnerScript = Path.Combine(profilePath, "launch.vbs");

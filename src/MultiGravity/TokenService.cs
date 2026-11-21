@@ -122,7 +122,7 @@ namespace MultiGravity
             }
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("google-antigravity/2.25.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("antigravity/hub/2.34.0");
 
             var formParams = new Dictionary<string, string>
             {
@@ -197,7 +197,16 @@ namespace MultiGravity
 
                 // Write back atomically
                 Directory.CreateDirectory(Path.GetDirectoryName(tokenFile)!);
-                await File.WriteAllTextAsync(tokenFile, root.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
+                string rawBlob = root.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+                await File.WriteAllTextAsync(tokenFile, rawBlob);
+
+                // Bridge: sync to shared Rainmeter vault
+                try
+                {
+                    long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
+                    VaultBridge.UpdateOrAddAccount(email, profileName, newAccessToken, newRefreshToken ?? refreshToken, idToken ?? "", expUnix, rawBlob);
+                }
+                catch { }
 
                 return (true, $"Token refreshed successfully for '{profileName}'!\n\nAccount: {email}\nValid until: {expiryUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }
@@ -325,7 +334,7 @@ namespace MultiGravity
 
             // Exchange authorization code for tokens
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("google-antigravity/2.25.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("antigravity/hub/2.34.0");
 
             var tokenExchangeParams = new Dictionary<string, string>
             {
@@ -384,7 +393,16 @@ namespace MultiGravity
                     ["writer_id"] = Guid.NewGuid().ToString("N")
                 };
 
-                await File.WriteAllTextAsync(tokenFile, rootObj.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
+                string rawBlob = rootObj.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+                await File.WriteAllTextAsync(tokenFile, rawBlob);
+
+                // Bridge: sync to shared Rainmeter vault
+                try
+                {
+                    long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
+                    VaultBridge.UpdateOrAddAccount(email, profileName, accessToken, refreshToken, idToken, expUnix, rawBlob);
+                }
+                catch { }
 
                 return (true, $"Signed in successfully for '{profileName}'!\n\nAccount: {email}\nToken valid until: {expiryUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }

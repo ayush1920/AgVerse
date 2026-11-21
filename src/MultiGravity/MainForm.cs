@@ -21,6 +21,7 @@ namespace MultiGravity
         private Label _lblTokenInfo = null!;
 
         private Button _btnLaunch = null!;
+        private Button _btnSetDefault = null!;
         private Button _btnManageProjects = null!;
         private Button _btnRefreshToken = null!;
         private Button _btnShortcut = null!;
@@ -37,7 +38,7 @@ namespace MultiGravity
 
         private void InitializeComponent()
         {
-            Size = new Size(580, 690);
+            Size = new Size(580, 730);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -175,7 +176,7 @@ namespace MultiGravity
             rootPanel.Controls.Add(_grpProfiles, 0, 2);
 
             // 4. Action Buttons
-            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 6, ColumnCount = 1 };
+            var btnPanel = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, RowCount = 7, ColumnCount = 1 };
 
             _chkVerbose = new CheckBox
             {
@@ -197,6 +198,18 @@ namespace MultiGravity
                 Margin = new Padding(0, 2, 0, 4)
             };
             _btnLaunch.Click += OnLaunchProfileClick;
+
+            _btnSetDefault = new Button
+            {
+                Text = Localization.T("btn_set_default"),
+                Dock = DockStyle.Fill,
+                Height = 34,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BackColor = Color.FromArgb(254, 250, 235),
+                ForeColor = Color.FromArgb(140, 90, 0),
+                Margin = new Padding(0, 2, 0, 4)
+            };
+            _btnSetDefault.Click += OnSetDefaultClick;
 
             _btnManageProjects = new Button
             {
@@ -241,10 +254,11 @@ namespace MultiGravity
 
             btnPanel.Controls.Add(_chkVerbose, 0, 0);
             btnPanel.Controls.Add(_btnLaunch, 0, 1);
-            btnPanel.Controls.Add(_btnManageProjects, 0, 2);
-            btnPanel.Controls.Add(_btnRefreshToken, 0, 3);
-            btnPanel.Controls.Add(_btnShortcut, 0, 4);
-            btnPanel.Controls.Add(_btnDelete, 0, 5);
+            btnPanel.Controls.Add(_btnSetDefault, 0, 2);
+            btnPanel.Controls.Add(_btnManageProjects, 0, 3);
+            btnPanel.Controls.Add(_btnRefreshToken, 0, 4);
+            btnPanel.Controls.Add(_btnShortcut, 0, 5);
+            btnPanel.Controls.Add(_btnDelete, 0, 6);
             rootPanel.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(rootPanel);
@@ -280,7 +294,9 @@ namespace MultiGravity
             for (int i = 0; i < profiles.Count; i++)
             {
                 var p = profiles[i];
-                string display = $"{p.Name}  ({p.ProjectCount} {Localization.T("projetos_sufixo")})";
+                bool isActive = VaultBridge.IsProfileActiveInIde(p.Name, p.Path);
+                string defaultBadge = isActive ? "  " + Localization.T("badge_default") : "";
+                string display = $"{p.Name}{defaultBadge}  ({p.ProjectCount} {Localization.T("projetos_sufixo")})";
                 _lstProfiles.Items.Add(display);
 
                 if (selectedName != null && p.Name.Equals(selectedName, StringComparison.OrdinalIgnoreCase))
@@ -310,26 +326,31 @@ namespace MultiGravity
                 _lblTokenInfo.Text = "🔑 Account: No profile selected";
                 _lblTokenInfo.ForeColor = Color.Gray;
                 _btnRefreshToken.Enabled = false;
+                _btnSetDefault.Enabled = false;
                 return;
             }
 
             _btnRefreshToken.Enabled = true;
+            _btnSetDefault.Enabled = true;
             string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
             var (email, hasToken, isExpired, expiryText) = TokenService.GetTokenSummary(profilePath);
 
+            bool isActive = VaultBridge.IsProfileActiveInIde(name, profilePath);
+            string activeTag = isActive ? "  •  " + Localization.T("badge_default") : "";
+
             if (!hasToken)
             {
-                _lblTokenInfo.Text = $"🔑 Account: None linked (click Refresh Token to sign in)";
+                _lblTokenInfo.Text = $"🔑 Account: None linked (click Refresh Token to sign in){activeTag}";
                 _lblTokenInfo.ForeColor = Color.FromArgb(180, 90, 0);
             }
             else if (isExpired)
             {
-                _lblTokenInfo.Text = $"🔑 {email}  •  Status: Expired (click Refresh Token)";
+                _lblTokenInfo.Text = $"🔑 {email}  •  Status: Expired (click Refresh Token){activeTag}";
                 _lblTokenInfo.ForeColor = Color.FromArgb(190, 70, 0);
             }
             else
             {
-                _lblTokenInfo.Text = $"🔑 {email}  •  Status: {expiryText}";
+                _lblTokenInfo.Text = $"🔑 {email}  •  Status: {expiryText}{activeTag}";
                 _lblTokenInfo.ForeColor = Color.FromArgb(34, 139, 34);
             }
         }
@@ -339,7 +360,10 @@ namespace MultiGravity
             if (_lstProfiles.SelectedIndex < 0) return null;
             string item = _lstProfiles.SelectedItem?.ToString() ?? "";
             int idx = item.IndexOf("  (");
-            return idx > 0 ? item.Substring(0, idx) : item;
+            string namePart = idx > 0 ? item.Substring(0, idx) : item;
+            int badgeIdx = namePart.IndexOf("  ⭐");
+            if (badgeIdx > 0) namePart = namePart.Substring(0, badgeIdx);
+            return namePart.Trim();
         }
 
         private void OnLanguageChanged(object? sender, EventArgs e)
@@ -363,10 +387,36 @@ namespace MultiGravity
             _grpProfiles.Text = Localization.T("frame_perfis");
             _chkVerbose.Text = Localization.T("chk_verbose");
             _btnLaunch.Text = Localization.T("btn_abrir");
+            _btnSetDefault.Text = Localization.T("btn_set_default");
             _btnManageProjects.Text = "📂 " + Localization.T("btn_proj");
             _btnRefreshToken.Text = "🔄 " + Localization.T("btn_refresh_token");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
+        }
+
+        private void OnSetDefaultClick(object? sender, EventArgs e)
+        {
+            string? name = GetSelectedProfileName();
+            if (string.IsNullOrEmpty(name))
+            {
+                MessageBox.Show(this, Localization.T("aviso_selecao"), Localization.T("t_aviso"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
+            var (email, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
+
+            bool success = VaultBridge.SetActiveAccount(hasToken && !string.IsNullOrEmpty(email) ? email : name);
+            if (success)
+            {
+                LoadProfiles();
+                UpdateSelectedProfileTokenInfo();
+                MessageBox.Show(this, Localization.T("msg_default_set", name), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show(this, "Could not set as default profile. Ensure the profile has an account linked or token refreshed.", Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void OnVerboseModeChanged(object? sender, EventArgs e)
