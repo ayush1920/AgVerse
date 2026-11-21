@@ -12,9 +12,20 @@ namespace MultiGravity
 
     public static class AntigravityCore
     {
-        public static string BaseDir { get; } = AppDomain.CurrentDomain.BaseDirectory;
+        public static string BaseDir { get; } = DetermineBaseDir();
         public static string ProfilesDir { get; } = Path.Combine(BaseDir, "profiles");
         public static string ConfigFile { get; } = Path.Combine(BaseDir, "config.json");
+
+        private static string DetermineBaseDir()
+        {
+            string appDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (Directory.Exists(Path.Combine(appDir, "profiles")))
+                return appDir;
+            string? parent = Directory.GetParent(appDir)?.FullName;
+            if (parent != null && Directory.Exists(Path.Combine(parent, "profiles")))
+                return parent;
+            return appDir;
+        }
         public static string MasterProjectsDir { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".gemini", "config", "projects");

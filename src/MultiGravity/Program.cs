@@ -28,8 +28,15 @@ namespace MultiGravity
             }
 
             // Normal GUI mode
-            ApplicationConfiguration.Initialize();
-            Application.Run(new MainForm());
+            try
+            {
+                ApplicationConfiguration.Initialize();
+                Application.Run(new MainForm());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Fatal MultiGravity Error:\n" + ex.ToString(), "MultiGravity Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
