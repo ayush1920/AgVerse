@@ -5,11 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace AgVerse
 {
     public record ProjectInfo(string Id, string Name, string Filename, string SourcePath, string FolderPath = "", bool IsArchived = false);
     public record ProfileInfo(string Name, int ProjectCount, string Path);
+    public record SyncResult(int FilesCopied, int FilesRemoved, int ProfilesTouched, List<string> SyncedProjectNames);
 
     public static class AntigravityCore
     {
@@ -19,7 +21,37 @@ namespace AgVerse
         public static string BaseDir { get; } = DetermineBaseDir();
         public static string ConfigFile { get; } = Path.Combine(BaseDir, "config.json");
         public static string ProfilesDir { get; private set; } = DetermineProfilesDir();
-        public static string ArchivedProjectsDir => Path.Combine(BaseDir, "archived_projects");
+        public static string ArchivedProjectsDir { get; } = DetermineArchivedProjectsDir();
+
+        private static string DetermineArchivedProjectsDir()
+        {
+            string target = Path.Combine(BaseDir, "archived_projects");
+            try
+            {
+                string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!string.IsNullOrEmpty(localApp))
+                {
+                    string shared = Path.Combine(localApp, "AgVerse", "archived_projects");
+                    string legacy = Path.Combine(BaseDir, "archived_projects");
+                    // Migrate any legacy archived files from BaseDir so installed/portable builds share one archive.
+                    if (!string.Equals(legacy, shared, StringComparison.OrdinalIgnoreCase) && Directory.Exists(legacy))
+                    {
+                        Directory.CreateDirectory(shared);
+                        foreach (string f in Directory.GetFiles(legacy, "*.json"))
+                        {
+                            string dest = Path.Combine(shared, Path.GetFileName(f));
+                            if (!File.Exists(dest))
+                            {
+                                try { File.Copy(f, dest, false); } catch { }
+                            }
+                        }
+                    }
+                    target = shared;
+                }
+            }
+            catch { }
+            return target;
+        }
 
         public static string GetRealUserHome()
         {
@@ -329,11 +361,63 @@ namespace AgVerse
             Localization.Initialize(ConfigFile);
             VaultBridge.RegisterProfilesDir(ProfilesDir);
             VaultBridge.SyncAllAccountsAndProfiles();
+            SyncAllProfiles();
+        }
+
+        private static bool IsSpecialProjectFilename(string filename)
+        {
+            return filename.Equals("outside-of-project.json", StringComparison.OrdinalIgnoreCase) ||
+                   filename.Equals("default-cli-project.json", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool TryReadProjectFile(string file, out ProjectInfo? info)
+        {
+            info = null;
+            string filename = Path.GetFileName(file);
+            if (IsSpecialProjectFilename(filename)) return false;
+
+            try
+            {
+                using var stream = File.OpenRead(file);
+                using var doc = JsonDocument.Parse(stream);
+                var root = doc.RootElement;
+
+                // Filter out sidecars and swarm boards
+                if (root.TryGetProperty("sidecar", out _)) return false;
+
+                if (root.TryGetProperty("name", out var nameProp) &&
+                    nameProp.GetString() == "swarm/swarm_board")
+                {
+                    return false;
+                }
+
+                // Filter out non-workspace entries without projectResources.resources
+                if (!root.TryGetProperty("projectResources", out var resProp) ||
+                    !resProp.TryGetProperty("resources", out var arrProp) ||
+                    arrProp.ValueKind != JsonValueKind.Array ||
+                    arrProp.GetArrayLength() == 0)
+                {
+                    return false;
+                }
+
+                string name = nameProp.GetString() ?? Path.GetFileNameWithoutExtension(filename);
+                string id = root.TryGetProperty("id", out var idProp) ? (idProp.GetString() ?? filename) : filename;
+                string folderPath = ExtractFolderPath(root);
+
+                info = new ProjectInfo(id, name, filename, file, folderPath, false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public static Dictionary<string, ProjectInfo> GetAllProjects()
         {
             var projects = new Dictionary<string, ProjectInfo>(StringComparer.OrdinalIgnoreCase);
+            var bestTimestamps = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+            var archived = GetArchivedProjects();
             var searchDirs = new List<string> { MasterProjectsDir };
 
             if (Directory.Exists(ProfilesDir))
@@ -351,51 +435,93 @@ namespace AgVerse
 
                 foreach (string file in Directory.GetFiles(dir, "*.json"))
                 {
-                    string filename = Path.GetFileName(file);
-                    if (filename.Equals("outside-of-project.json", StringComparison.OrdinalIgnoreCase) ||
-                        filename.Equals("default-cli-project.json", StringComparison.OrdinalIgnoreCase))
+                    if (!TryReadProjectFile(file, out var info) || info == null) continue;
+                    if (archived.ContainsKey(info.Id)) continue;
+
+                    DateTime mtime = File.GetLastWriteTimeUtc(file);
+                    if (!projects.TryGetValue(info.Id, out var existing))
                     {
-                        continue;
+                        projects[info.Id] = info;
+                        bestTimestamps[info.Id] = mtime;
                     }
-
-                    try
+                    else
                     {
-                        using var stream = File.OpenRead(file);
-                        using var doc = JsonDocument.Parse(stream);
-                        var root = doc.RootElement;
+                        // Prefer project copy whose workspace folder actually exists on disk; tie-break by newest write time.
+                        bool existingDirOk = !string.IsNullOrEmpty(existing.FolderPath) && Directory.Exists(existing.FolderPath);
+                        bool candidateDirOk = !string.IsNullOrEmpty(info.FolderPath) && Directory.Exists(info.FolderPath);
 
-                        // Filter out sidecars and swarm boards
-                        if (root.TryGetProperty("sidecar", out _)) continue;
-
-                        if (root.TryGetProperty("name", out var nameProp) &&
-                            nameProp.GetString() == "swarm/swarm_board")
+                        if ((candidateDirOk && !existingDirOk) ||
+                            (candidateDirOk == existingDirOk && mtime > bestTimestamps[info.Id]))
                         {
-                            continue;
-                        }
-
-                        // Filter out non-workspace entries without projectResources.resources
-                        if (!root.TryGetProperty("projectResources", out var resProp) ||
-                            !resProp.TryGetProperty("resources", out var arrProp) ||
-                            arrProp.ValueKind != JsonValueKind.Array ||
-                            arrProp.GetArrayLength() == 0)
-                        {
-                            continue;
-                        }
-
-                        string name = nameProp.GetString() ?? Path.GetFileNameWithoutExtension(filename);
-                        string id = root.TryGetProperty("id", out var idProp) ? (idProp.GetString() ?? filename) : filename;
-                        string folderPath = ExtractFolderPath(root);
-
-                        if (!projects.ContainsKey(id))
-                        {
-                            projects[id] = new ProjectInfo(id, name, filename, file, folderPath, false);
+                            projects[info.Id] = info;
+                            bestTimestamps[info.Id] = mtime;
                         }
                     }
-                    catch { }
                 }
             }
 
             return projects;
+        }
+
+        public static Dictionary<string, HashSet<string>> GetProjectPresenceMap()
+        {
+            var presence = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            if (!Directory.Exists(ProfilesDir)) return presence;
+
+            var archived = GetArchivedProjects();
+            foreach (string profDir in Directory.GetDirectories(ProfilesDir))
+            {
+                string profName = Path.GetFileName(profDir);
+                string projDir = Path.Combine(profDir, "home", ".gemini", "config", "projects");
+                if (!Directory.Exists(projDir)) continue;
+
+                foreach (string file in Directory.GetFiles(projDir, "*.json"))
+                {
+                    if (!TryReadProjectFile(file, out var info) || info == null) continue;
+                    if (archived.ContainsKey(info.Id)) continue;
+
+                    if (!presence.TryGetValue(info.Id, out var set))
+                    {
+                        set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        presence[info.Id] = set;
+                    }
+                    set.Add(profName);
+                }
+            }
+
+            return presence;
+        }
+
+        public static string ExtractFolderPathFromUri(string? uri)
+        {
+            if (string.IsNullOrWhiteSpace(uri)) return "";
+            try
+            {
+                // VS Code / Antigravity encodes drive colons as %3A (e.g. file:///c%3A/Users/...),
+                // causing Uri.LocalPath to return "/c:/Users/..." instead of "c:\Users\...".
+                string normalized = Regex.Replace(uri.Trim(), @"^file://+/([a-zA-Z])%3A", "file:///$1:", RegexOptions.IgnoreCase);
+
+                string path;
+                if (Uri.TryCreate(normalized, UriKind.Absolute, out var parsedUri) && parsedUri.IsFile)
+                {
+                    path = parsedUri.LocalPath;
+                }
+                else
+                {
+                    path = Uri.UnescapeDataString(normalized.Replace("file:///", "").Replace("file://", ""));
+                }
+
+                if (path.Length >= 3 && path[0] == '/' && char.IsLetter(path[1]) && path[2] == ':')
+                {
+                    path = path.Substring(1);
+                }
+
+                return path.Replace('/', Path.DirectorySeparatorChar);
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private static string ExtractFolderPath(JsonElement root)
@@ -416,18 +542,7 @@ namespace AgVerse
                     uri = fu2.GetString();
                 }
 
-                if (!string.IsNullOrEmpty(uri))
-                {
-                    try
-                    {
-                        if (Uri.TryCreate(uri, UriKind.Absolute, out var parsedUri))
-                        {
-                            return parsedUri.LocalPath;
-                        }
-                        return Uri.UnescapeDataString(uri.Replace("file:///", "").Replace('/', Path.DirectorySeparatorChar));
-                    }
-                    catch { }
-                }
+                return ExtractFolderPathFromUri(uri);
             }
             return "";
         }
@@ -521,15 +636,65 @@ namespace AgVerse
             return true;
         }
 
-        public static void SyncAllProfiles()
+        public static SyncResult SyncAllProfiles()
         {
+            int totalCopied = 0;
+            int totalRemoved = 0;
+            int profilesTouched = 0;
+            var syncedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var archived = GetArchivedProjects();
+            var allProjects = GetAllProjects();
+
+            // Clean any leftover archived files from Master and mirror active projects back to Master
+            try
+            {
+                if (Directory.Exists(MasterProjectsDir))
+                {
+                    foreach (var ap in archived.Values)
+                    {
+                        string mf = Path.Combine(MasterProjectsDir, ap.Filename);
+                        if (File.Exists(mf))
+                        {
+                            try { File.Delete(mf); } catch { }
+                        }
+                    }
+
+                    foreach (var pinfo in allProjects.Values)
+                    {
+                        string masterFile = Path.Combine(MasterProjectsDir, pinfo.Filename);
+                        if (!string.Equals(pinfo.SourcePath, masterFile, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!File.Exists(masterFile) ||
+                                File.GetLastWriteTimeUtc(pinfo.SourcePath) > File.GetLastWriteTimeUtc(masterFile).AddSeconds(2))
+                            {
+                                try { File.Copy(pinfo.SourcePath, masterFile, true); } catch { }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
             if (Directory.Exists(ProfilesDir))
             {
                 foreach (string prof in Directory.GetDirectories(ProfilesDir))
                 {
-                    try { SyncProfileProjects(prof); } catch { }
+                    try
+                    {
+                        SyncProfileProjectsInternal(prof, allProjects, archived, out int c, out int r, syncedNames);
+                        if (c > 0 || r > 0)
+                        {
+                            totalCopied += c;
+                            totalRemoved += r;
+                            profilesTouched++;
+                        }
+                    }
+                    catch { }
                 }
             }
+
+            return new SyncResult(totalCopied, totalRemoved, profilesTouched, syncedNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList());
         }
 
         public static HashSet<string> GetExclusions(string profilePath)
@@ -641,6 +806,23 @@ namespace AgVerse
 
         public static void SyncProfileProjects(string profilePath)
         {
+            var allProjects = GetAllProjects();
+            var archivedProjects = GetArchivedProjects();
+            var syncedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            SyncProfileProjectsInternal(profilePath, allProjects, archivedProjects, out _, out _, syncedNames);
+        }
+
+        private static void SyncProfileProjectsInternal(
+            string profilePath,
+            Dictionary<string, ProjectInfo> allProjects,
+            Dictionary<string, ProjectInfo> archivedProjects,
+            out int copiedCount,
+            out int removedCount,
+            HashSet<string> syncedNames)
+        {
+            copiedCount = 0;
+            removedCount = 0;
+
             string projDir = Path.Combine(profilePath, "home", ".gemini", "config", "projects");
             Directory.CreateDirectory(projDir);
 
@@ -660,20 +842,22 @@ namespace AgVerse
                 foreach (string file in Directory.GetFiles(projDir, "*.json"))
                 {
                     string fname = Path.GetFileName(file);
-                    if (fname.Equals("outside-of-project.json", StringComparison.OrdinalIgnoreCase) ||
-                        fname.Equals("default-cli-project.json", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
+                    if (IsSpecialProjectFilename(fname)) continue;
 
                     try
                     {
-                        using var s = File.OpenRead(file);
-                        using var doc = JsonDocument.Parse(s);
-                        if (doc.RootElement.TryGetProperty("sidecar", out _) ||
-                            (doc.RootElement.TryGetProperty("name", out var n) && n.GetString() == "swarm/swarm_board"))
+                        bool isSidecar = false;
+                        using (var s = File.OpenRead(file))
+                        using (var doc = JsonDocument.Parse(s))
                         {
-                            s.Close();
+                            if (doc.RootElement.TryGetProperty("sidecar", out _) ||
+                                (doc.RootElement.TryGetProperty("name", out var n) && n.GetString() == "swarm/swarm_board"))
+                            {
+                                isSidecar = true;
+                            }
+                        }
+                        if (isSidecar)
+                        {
                             File.Delete(file);
                         }
                     }
@@ -682,21 +866,18 @@ namespace AgVerse
             }
 
             // Clean out any archived projects that may still exist in profile
-            var archivedProjects = GetArchivedProjects();
             foreach (var ap in archivedProjects.Values)
             {
                 string af = Path.Combine(projDir, ap.Filename);
                 if (File.Exists(af))
                 {
-                    try { File.Delete(af); } catch { }
+                    try { File.Delete(af); removedCount++; } catch { }
                 }
             }
 
-            var allProjects = GetAllProjects();
             var exclusions = GetExclusions(profilePath);
 
-            // Default-shared logic:
-            // Every valid project is present UNLESS explicitly excluded
+            // Default-shared logic: every valid project is present UNLESS explicitly excluded
             foreach (var (pid, pinfo) in allProjects)
             {
                 string destFile = Path.Combine(projDir, pinfo.Filename);
@@ -704,25 +885,38 @@ namespace AgVerse
                 {
                     if (File.Exists(destFile))
                     {
-                        try { File.Delete(destFile); } catch { }
+                        try { File.Delete(destFile); removedCount++; } catch { }
                     }
                 }
-                else
+                else if (!string.Equals(pinfo.SourcePath, destFile, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!File.Exists(destFile))
+                    bool shouldCopy = !File.Exists(destFile) ||
+                                      File.GetLastWriteTimeUtc(pinfo.SourcePath) > File.GetLastWriteTimeUtc(destFile).AddSeconds(2);
+                    if (shouldCopy)
                     {
-                        try { File.Copy(pinfo.SourcePath, destFile, true); } catch { }
+                        try
+                        {
+                            File.Copy(pinfo.SourcePath, destFile, true);
+                            copiedCount++;
+                            syncedNames.Add(pinfo.Name);
+                        }
+                        catch { }
                     }
                 }
             }
         }
 
-        public static List<ProfileInfo> GetProfiles()
+        public static List<ProfileInfo> GetProfiles(bool syncVault = true)
         {
-            VaultBridge.SyncAllAccountsAndProfiles();
+            if (syncVault)
+            {
+                VaultBridge.SyncAllAccountsAndProfiles();
+            }
+
             var list = new List<ProfileInfo>();
             if (!Directory.Exists(ProfilesDir)) return list;
 
+            var archived = GetArchivedProjects();
             foreach (string dir in Directory.GetDirectories(ProfilesDir).OrderBy(d => Path.GetFileName(d)))
             {
                 string name = Path.GetFileName(dir);
@@ -733,24 +927,10 @@ namespace AgVerse
                 {
                     foreach (string file in Directory.GetFiles(projDir, "*.json"))
                     {
-                        string fname = Path.GetFileName(file);
-                        if (fname.Equals("outside-of-project.json", StringComparison.OrdinalIgnoreCase) ||
-                            fname.Equals("default-cli-project.json", StringComparison.OrdinalIgnoreCase))
+                        if (TryReadProjectFile(file, out var info) && info != null && !archived.ContainsKey(info.Id))
                         {
-                            continue;
+                            count++;
                         }
-
-                        try
-                        {
-                            using var s = File.OpenRead(file);
-                            using var doc = JsonDocument.Parse(s);
-                            if (!doc.RootElement.TryGetProperty("sidecar", out _) &&
-                                (!doc.RootElement.TryGetProperty("name", out var n) || n.GetString() != "swarm/swarm_board"))
-                            {
-                                count++;
-                            }
-                        }
-                        catch { }
                     }
                 }
 

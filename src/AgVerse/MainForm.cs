@@ -10,6 +10,7 @@ namespace AgVerse
 {
     public class MainForm : Form
     {
+        private Button _btnSyncRefresh = null!;
         private Button _btnGitHub = null!;
         private ComboBox _cbLanguage = null!;
         private GroupBox _grpCreate = null!;
@@ -32,13 +33,15 @@ namespace AgVerse
         private Button _btnDelete = null!;
         private CheckBox _chkVerbose = null!;
         private readonly ToolTip _toolTip = new();
+        private DateTime _lastAutoSyncUtc = DateTime.UtcNow;
+        private bool _isModalOpen = false;
 
         public MainForm()
         {
             InitializeComponent();
             LoadProfiles();
             UpdateLocalizedTexts();
-            Activated += (s, e) => UpdateSelectedProfileTokenInfo();
+            Activated += (s, e) => OnFormActivated();
         }
 
         private int Dpi(int px) => (int)Math.Round(px * (DeviceDpi / 96.0f));
@@ -151,6 +154,39 @@ namespace AgVerse
             langPanel.Controls.Add(lblLang);
             langPanel.Controls.Add(_cbLanguage);
 
+            var headerRightPanel = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+
+            _btnSyncRefresh = new Button
+            {
+                Text = "↻ " + Localization.T("btn_sync_refresh"),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(9, 105, 218),
+                Height = Dpi(26),
+                AutoSize = true,
+                MinimumSize = new Size(Dpi(110), Dpi(26)),
+                Padding = new Padding(Dpi(8), 0, Dpi(8), 0),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, Dpi(6), 0)
+            };
+            _btnSyncRefresh.FlatAppearance.BorderColor = Color.FromArgb(208, 215, 222);
+            _btnSyncRefresh.FlatAppearance.BorderSize = 1;
+            _btnSyncRefresh.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 246, 255);
+            _btnSyncRefresh.Click += OnSyncRefreshClick;
+            _toolTip.SetToolTip(_btnSyncRefresh, "Sync newly created projects across all profiles and refresh quota vault");
+
             _btnGitHub = new Button
             {
                 Text = "GitHub",
@@ -163,7 +199,6 @@ namespace AgVerse
                 Height = Dpi(26),
                 Width = Dpi(90),
                 Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
                 Margin = Padding.Empty,
                 Padding = new Padding(Dpi(18), 0, 0, 0)
             };
@@ -199,8 +234,10 @@ namespace AgVerse
             };
             _toolTip.SetToolTip(_btnGitHub, "View AgVerse source repository on GitHub (ayush1920/AgVerse)");
 
+            headerRightPanel.Controls.Add(_btnSyncRefresh);
+            headerRightPanel.Controls.Add(_btnGitHub);
             topHeaderPanel.Controls.Add(langPanel, 0, 0);
-            topHeaderPanel.Controls.Add(_btnGitHub, 1, 0);
+            topHeaderPanel.Controls.Add(headerRightPanel, 1, 0);
             rootPanel.Controls.Add(topHeaderPanel, 0, 0);
 
             // 2. Create Profile GroupBox (compact top padding)
@@ -341,7 +378,7 @@ namespace AgVerse
             // Token info status bar
             _lblTokenInfo = new Label
             {
-                Text = "🔑 Account: Select a profile...",
+                Text = "Account: Select a profile...",
                 AutoSize = false,
                 AutoEllipsis = true,
                 Dock = DockStyle.Fill,
@@ -474,7 +511,7 @@ namespace AgVerse
             _btnSetDefault.Click += OnSetDefaultClick;
 
             _btnManageProjects = CreateUniformButton(
-                "📂 " + Localization.T("btn_proj"),
+                Localization.T("btn_proj"),
                 btnHeight,
                 Color.White,
                 Color.FromArgb(31, 35, 40),
@@ -485,7 +522,7 @@ namespace AgVerse
             _btnManageProjects.Click += OnManageProjectsClick;
 
             _btnRefreshToken = CreateUniformButton(
-                "🔄 " + Localization.T("btn_refresh_token"),
+                "↻ " + Localization.T("btn_refresh_token"),
                 btnHeight,
                 Color.White,
                 Color.FromArgb(31, 35, 40),
@@ -588,19 +625,29 @@ namespace AgVerse
 
         private void OnChangeProfilesFolder(object? sender, LinkLabelLinkClickedEventArgs e)
         {
-            using var dlg = new FolderBrowserDialog
+            _isModalOpen = true;
+            try
             {
-                Description = "Select AgVerse Profiles Folder",
-                SelectedPath = AntigravityCore.ProfilesDir,
-                UseDescriptionForTitle = true
-            };
+                using var dlg = new FolderBrowserDialog
+                {
+                    Description = "Select AgVerse Profiles Folder",
+                    SelectedPath = AntigravityCore.ProfilesDir,
+                    UseDescriptionForTitle = true
+                };
 
-            if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+                if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+                {
+                    AntigravityCore.SetProfilesDir(dlg.SelectedPath);
+                    _lblProfilesPath.Text = dlg.SelectedPath;
+                    _toolTip.SetToolTip(_lblProfilesPath, dlg.SelectedPath);
+                    AntigravityCore.SyncAllProfiles();
+                    LoadProfiles();
+                }
+            }
+            finally
             {
-                AntigravityCore.SetProfilesDir(dlg.SelectedPath);
-                _lblProfilesPath.Text = dlg.SelectedPath;
-                _toolTip.SetToolTip(_lblProfilesPath, dlg.SelectedPath);
-                LoadProfiles();
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                _isModalOpen = false;
             }
         }
 
@@ -686,7 +733,7 @@ namespace AgVerse
             string? name = GetSelectedProfileName();
             if (string.IsNullOrEmpty(name))
             {
-                _lblTokenInfo.Text = "🔑 Account: No profile selected";
+                _lblTokenInfo.Text = "● Account: No profile selected";
                 _lblTokenInfo.ForeColor = Color.Gray;
                 _btnRefreshToken.Enabled = false;
                 _btnSetDefault.Enabled = false;
@@ -706,17 +753,17 @@ namespace AgVerse
 
             if (!hasToken)
             {
-                _lblTokenInfo.Text = $"🔑 Account: None linked (click Refresh Token to sign in){activeTag}";
+                _lblTokenInfo.Text = $"○ Account: None linked (click Refresh Token to sign in){activeTag}";
                 _lblTokenInfo.ForeColor = activeColor;
             }
             else if (isExpired)
             {
-                _lblTokenInfo.Text = $"🔑 {email}  •  Status: Expired (click Refresh Token){activeTag}";
+                _lblTokenInfo.Text = $"● {email}  •  Status: Expired (click Refresh Token){activeTag}";
                 _lblTokenInfo.ForeColor = Color.FromArgb(190, 70, 0);
             }
             else
             {
-                _lblTokenInfo.Text = $"🔑 {email}  •  Status: {expiryText}{activeTag}";
+                _lblTokenInfo.Text = $"● {email}  •  Status: {expiryText}{activeTag}";
                 _lblTokenInfo.ForeColor = activeColor;
             }
         }
@@ -746,6 +793,7 @@ namespace AgVerse
         private void UpdateLocalizedTexts()
         {
             Text = Localization.T("title");
+            _btnSyncRefresh.Text = "↻ " + Localization.T("btn_sync_refresh");
             _grpCreate.Text = Localization.T("frame_create");
             _lblProfileName.Text = Localization.T("lbl_nome");
             _btnSaveProfile.Text = Localization.T("btn_save");
@@ -755,10 +803,56 @@ namespace AgVerse
             _chkVerbose.Text = Localization.T("chk_verbose");
             _btnLaunch.Text = Localization.T("btn_abrir");
             _btnSetDefault.Text = Localization.T("btn_set_default");
-            _btnManageProjects.Text = "📂 " + Localization.T("btn_proj");
-            _btnRefreshToken.Text = "🔄 " + Localization.T("btn_refresh_token");
+            _btnManageProjects.Text = Localization.T("btn_proj");
+            _btnRefreshToken.Text = "↻ " + Localization.T("btn_refresh_token");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
+        }
+
+        private void OnFormActivated()
+        {
+            if (_isModalOpen) return;
+
+            if ((DateTime.UtcNow - _lastAutoSyncUtc).TotalSeconds >= 3)
+            {
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                var syncRes = AntigravityCore.SyncAllProfiles();
+                var latest = AntigravityCore.GetProfiles(syncVault: false);
+
+                if (syncRes.FilesCopied > 0 || syncRes.FilesRemoved > 0 || latest.Count != _lstProfiles.Items.Count)
+                {
+                    LoadProfiles();
+                    return;
+                }
+            }
+
+            UpdateSelectedProfileTokenInfo();
+        }
+
+        private void OnSyncRefreshClick(object? sender, EventArgs e)
+        {
+            _isModalOpen = true;
+            try
+            {
+                var syncRes = AntigravityCore.SyncAllProfiles();
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                LoadProfiles();
+
+                string summary = syncRes.FilesCopied > 0 || syncRes.FilesRemoved > 0
+                    ? $"Synced projects across {syncRes.ProfilesTouched} profile(s):\n• Copied/Updated: {syncRes.FilesCopied}\n• Removed (excluded/archived): {syncRes.FilesRemoved}" +
+                      (syncRes.SyncedProjectNames.Count > 0 ? $"\n\nProjects synced: {string.Join(", ", syncRes.SyncedProjectNames)}" : "")
+                    : "All profiles and projects are already up-to-date and in sync!";
+
+                MessageBox.Show(this, summary, "Sync & Refresh - AgVerse", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Sync failed: " + ex.Message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isModalOpen = false;
+            }
         }
 
         private void OnSetDefaultClick(object? sender, EventArgs e)
@@ -881,10 +975,19 @@ namespace AgVerse
 
         private void OnManageProjectsClick(object? sender, EventArgs e)
         {
-            string? name = GetSelectedProfileName();
-            using var form = new ProjectsManagerForm(name);
-            form.ShowDialog(this);
-            LoadProfiles();
+            _isModalOpen = true;
+            try
+            {
+                string? name = GetSelectedProfileName();
+                using var form = new ProjectsManagerForm(name);
+                form.ShowDialog(this);
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                LoadProfiles();
+            }
+            finally
+            {
+                _isModalOpen = false;
+            }
         }
 
         private async void OnRefreshTokenClick(object? sender, EventArgs e)
@@ -905,7 +1008,7 @@ namespace AgVerse
 
             _btnRefreshToken.Enabled = false;
             string origText = _btnRefreshToken.Text;
-            _btnRefreshToken.Text = "⏳ Refreshing token...";
+            _btnRefreshToken.Text = "↻ Refreshing token...";
 
             try
             {
@@ -925,7 +1028,7 @@ namespace AgVerse
 
                     if (ask == DialogResult.Yes)
                     {
-                        _btnRefreshToken.Text = "⏳ Waiting for browser sign-in...";
+                        _btnRefreshToken.Text = "↻ Waiting for browser sign-in...";
                         var (authSuccess, authMsg) = await TokenService.AuthenticateInBrowserAsync(profilePath, name);
                         UpdateSelectedProfileTokenInfo();
                         if (authSuccess)
