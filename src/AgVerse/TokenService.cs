@@ -40,6 +40,31 @@ namespace AgVerse
             "https://www.googleapis.com/auth/experimentsandconfigs"
         };
 
+        /// <summary>
+        /// Fallback email lookup when Google OAuth responses omit an id_token.
+        /// </summary>
+        private static async Task<string?> FetchEmailFromUserInfoAsync(string accessToken)
+        {
+            if (string.IsNullOrWhiteSpace(accessToken)) return null;
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                using var req = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v1/userinfo?alt=json");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                using var resp = await client.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return null;
+
+                string body = await resp.Content.ReadAsStringAsync();
+                var node = JsonNode.Parse(body);
+                string? email = node?["email"]?.ToString();
+                return VaultBridge.IsValidEmail(email) ? email : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static string GetTokenFilePath(string profilePath)
         {
             return Path.Combine(profilePath, "home", ".gemini", "jetski-standalone-oauth-token");
@@ -59,11 +84,13 @@ namespace AgVerse
                 var root = JsonNode.Parse(json);
                 if (root == null) return ("Invalid token file", false, true, "Corrupted token");
 
-                string email = root["id_token_email"]?.ToString() ?? "";
+                string? rawEmail = root["id_token_email"]?.ToString();
+                string email = VaultBridge.IsValidEmail(rawEmail) ? rawEmail! : "";
                 if (string.IsNullOrEmpty(email))
                 {
                     string idToken = root["id_token"]?.ToString() ?? "";
-                    email = ExtractEmailFromJwt(idToken) ?? "Unknown email";
+                    string? jwtEmail = ExtractEmailFromJwt(idToken);
+                    email = VaultBridge.IsValidEmail(jwtEmail) ? jwtEmail! : "Unknown email";
                 }
 
                 string expiryStr = root["token"]?["expiry"]?.ToString() ?? "";
@@ -115,6 +142,10 @@ namespace AgVerse
 
             string? refreshToken = root["token"]?["refresh_token"]?.ToString();
             string email = root["id_token_email"]?.ToString() ?? "";
+            if (!VaultBridge.IsValidEmail(email))
+            {
+                email = ExtractEmailFromJwt(root["id_token"]?.ToString()) ?? "";
+            }
 
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
@@ -182,17 +213,35 @@ namespace AgVerse
                     tokenNode["refresh_token"] = newRefreshToken;
                 }
 
-                // Update id_token if returned
+                // Update id_token if returned, preserving existing id_token if refresh omitted it
                 string? idToken = respNode["id_token"]?.ToString();
                 if (!string.IsNullOrEmpty(idToken))
                 {
                     root["id_token"] = idToken;
                     string? extractedEmail = ExtractEmailFromJwt(idToken);
-                    if (!string.IsNullOrEmpty(extractedEmail))
+                    if (VaultBridge.IsValidEmail(extractedEmail))
                     {
                         root["id_token_email"] = extractedEmail;
-                        email = extractedEmail;
+                        email = extractedEmail!;
                     }
+                }
+                else
+                {
+                    idToken = root["id_token"]?.ToString();
+                }
+
+                if (!VaultBridge.IsValidEmail(email) && !string.IsNullOrEmpty(newAccessToken))
+                {
+                    string? fetchedEmail = await FetchEmailFromUserInfoAsync(newAccessToken);
+                    if (VaultBridge.IsValidEmail(fetchedEmail))
+                    {
+                        email = fetchedEmail!;
+                        root["id_token_email"] = email;
+                    }
+                }
+                else if (VaultBridge.IsValidEmail(email))
+                {
+                    root["id_token_email"] = email;
                 }
 
                 // Write back atomically
@@ -201,12 +250,15 @@ namespace AgVerse
                 await File.WriteAllTextAsync(tokenFile, rawBlob);
 
                 // Bridge: sync to shared Rainmeter vault
-                try
+                if (VaultBridge.IsValidEmail(email))
                 {
-                    long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
-                    VaultBridge.UpdateOrAddAccount(email, profileName, newAccessToken, newRefreshToken ?? refreshToken, idToken ?? "", expUnix, rawBlob);
+                    try
+                    {
+                        long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
+                        VaultBridge.UpdateOrAddAccount(email, profileName, newAccessToken, newRefreshToken ?? refreshToken, idToken ?? "", expUnix, rawBlob);
+                    }
+                    catch { }
                 }
-                catch { }
 
                 return (true, $"Token refreshed successfully for '{profileName}'!\n\nAccount: {email}\nValid until: {expiryUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }
@@ -373,7 +425,12 @@ namespace AgVerse
                 int expiresIn = respNode["expires_in"]?.GetValue<int>() ?? 3599;
                 DateTime expiryUtc = DateTime.UtcNow.AddSeconds(expiresIn);
 
-                string email = ExtractEmailFromJwt(idToken) ?? "Unknown";
+                string? resolvedEmail = ExtractEmailFromJwt(idToken);
+                if (!VaultBridge.IsValidEmail(resolvedEmail) && !string.IsNullOrEmpty(accessToken))
+                {
+                    resolvedEmail = await FetchEmailFromUserInfoAsync(accessToken);
+                }
+                string email = VaultBridge.IsValidEmail(resolvedEmail) ? resolvedEmail! : "Unknown email";
 
                 var tokenFile = GetTokenFilePath(profilePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(tokenFile)!);
@@ -389,20 +446,30 @@ namespace AgVerse
                         ["expires_in"] = expiresIn
                     },
                     ["auth_method"] = "consumer",
-                    ["id_token_email"] = email,
                     ["writer_id"] = Guid.NewGuid().ToString("N")
                 };
+                if (!string.IsNullOrEmpty(idToken))
+                {
+                    rootObj["id_token"] = idToken;
+                }
+                if (VaultBridge.IsValidEmail(resolvedEmail))
+                {
+                    rootObj["id_token_email"] = resolvedEmail;
+                }
 
                 string rawBlob = rootObj.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
                 await File.WriteAllTextAsync(tokenFile, rawBlob);
 
                 // Bridge: sync to shared Rainmeter vault
-                try
+                if (VaultBridge.IsValidEmail(resolvedEmail))
                 {
-                    long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
-                    VaultBridge.UpdateOrAddAccount(email, profileName, accessToken, refreshToken, idToken, expUnix, rawBlob);
+                    try
+                    {
+                        long expUnix = new DateTimeOffset(expiryUtc).ToUnixTimeSeconds();
+                        VaultBridge.UpdateOrAddAccount(resolvedEmail!, profileName, accessToken, refreshToken, idToken, expUnix, rawBlob);
+                    }
+                    catch { }
                 }
-                catch { }
 
                 return (true, $"Signed in successfully for '{profileName}'!\n\nAccount: {email}\nToken valid until: {expiryUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }

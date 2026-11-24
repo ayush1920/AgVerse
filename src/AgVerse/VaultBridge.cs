@@ -60,16 +60,97 @@ namespace AgVerse
             catch { }
         }
 
+        private const string VaultMutexName = @"Local\AntigravityQuotaVaultMutex";
+
+        public static bool IsValidEmail(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+            string t = email.Trim();
+            if (t.Contains(' ') || t.Contains("Unknown", StringComparison.OrdinalIgnoreCase)) return false;
+            int at = t.IndexOf('@');
+            if (at <= 0 || at != t.LastIndexOf('@') || at >= t.Length - 1) return false;
+            int dot = t.IndexOf('.', at + 1);
+            return dot > at + 1 && dot < t.Length - 1;
+        }
+
+        private static string? TryExtractEmailFromVaultItem(JsonObject obj)
+        {
+            string? idTok = obj["IdToken"]?.ToString();
+            string? fromIdTok = TokenService.ExtractEmailFromJwt(idTok);
+            if (IsValidEmail(fromIdTok)) return fromIdTok;
+
+            string? rawBlob = obj["RawBlob"]?.ToString();
+            if (!string.IsNullOrEmpty(rawBlob))
+            {
+                try
+                {
+                    var node = JsonNode.Parse(rawBlob);
+                    string? blobEmail = node?["id_token_email"]?.ToString();
+                    if (IsValidEmail(blobEmail)) return blobEmail;
+
+                    string? blobIdTok = node?["id_token"]?.ToString();
+                    string? fromBlobJwt = TokenService.ExtractEmailFromJwt(blobIdTok);
+                    if (IsValidEmail(fromBlobJwt)) return fromBlobJwt;
+                }
+                catch { }
+            }
+
+            string? label = obj["Label"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(label) && Directory.Exists(AntigravityCore.ProfilesDir))
+            {
+                string profPath = Path.Combine(AntigravityCore.ProfilesDir, label);
+                if (Directory.Exists(profPath))
+                {
+                    var (profEmail, hasToken, _, _) = TokenService.GetTokenSummary(profPath);
+                    if (hasToken && IsValidEmail(profEmail)) return profEmail;
+                }
+            }
+
+            return null;
+        }
+
+        public static bool RepairPlaceholderEmails(JsonArray vault)
+        {
+            bool changed = false;
+            foreach (var item in vault)
+            {
+                if (item is not JsonObject obj) continue;
+                string? email = obj["Email"]?.ToString();
+                if (!IsValidEmail(email))
+                {
+                    string? resolved = TryExtractEmailFromVaultItem(obj);
+                    if (IsValidEmail(resolved))
+                    {
+                        obj["Email"] = resolved;
+                        changed = true;
+                    }
+                }
+            }
+            return changed;
+        }
+
         public static JsonArray LoadVaultJson()
         {
             if (!File.Exists(VaultPath)) return new JsonArray();
             try
             {
-                byte[] enc = File.ReadAllBytes(VaultPath);
-                byte[] dec = ProtectedData.Unprotect(enc, null, DataProtectionScope.CurrentUser);
-                string json = Encoding.UTF8.GetString(dec);
-                var node = JsonNode.Parse(json);
-                if (node is JsonArray arr) return arr;
+                using var mutex = new System.Threading.Mutex(false, VaultMutexName);
+                bool locked = false;
+                try
+                {
+                    try { locked = mutex.WaitOne(2500); }
+                    catch (System.Threading.AbandonedMutexException) { locked = true; }
+
+                    byte[] enc = File.ReadAllBytes(VaultPath);
+                    byte[] dec = ProtectedData.Unprotect(enc, null, DataProtectionScope.CurrentUser);
+                    string json = Encoding.UTF8.GetString(dec);
+                    var node = JsonNode.Parse(json);
+                    if (node is JsonArray arr) return arr;
+                }
+                finally
+                {
+                    if (locked) mutex.ReleaseMutex();
+                }
             }
             catch { }
             return new JsonArray();
@@ -83,21 +164,47 @@ namespace AgVerse
                 string json = array.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
                 byte[] raw = Encoding.UTF8.GetBytes(json);
                 byte[] enc = ProtectedData.Protect(raw, null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(VaultPath, enc);
+
+                using var mutex = new System.Threading.Mutex(false, VaultMutexName);
+                bool locked = false;
+                try
+                {
+                    try { locked = mutex.WaitOne(2500); }
+                    catch (System.Threading.AbandonedMutexException) { locked = true; }
+
+                    string tmpPath = VaultPath + ".tmp";
+                    File.WriteAllBytes(tmpPath, enc);
+                    File.Move(tmpPath, VaultPath, overwrite: true);
+                }
+                finally
+                {
+                    if (locked) mutex.ReleaseMutex();
+                }
             }
             catch { }
         }
 
         public static JsonObject? FindAccount(JsonArray vault, string? email, string? profileName)
         {
-            if (!string.IsNullOrWhiteSpace(email))
+            if (IsValidEmail(email))
             {
                 foreach (var item in vault)
                 {
-                    if (item is JsonObject obj &&
-                        string.Equals(obj["Email"]?.ToString(), email, StringComparison.OrdinalIgnoreCase))
+                    if (item is not JsonObject obj) continue;
+                    string? itemEmail = obj["Email"]?.ToString();
+                    if (string.Equals(itemEmail, email, StringComparison.OrdinalIgnoreCase))
                     {
                         return obj;
+                    }
+
+                    // Fallback: if stored Email was a placeholder (e.g. "Unknown email"), check JWT email inside item
+                    if (!IsValidEmail(itemEmail))
+                    {
+                        string? resolved = TryExtractEmailFromVaultItem(obj);
+                        if (string.Equals(resolved, email, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return obj;
+                        }
                     }
                 }
             }
@@ -111,7 +218,7 @@ namespace AgVerse
                         string? label = obj["Label"]?.ToString();
                         string? itemEmail = obj["Email"]?.ToString();
                         if (string.Equals(label, profileName, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(itemEmail, profileName, StringComparison.OrdinalIgnoreCase))
+                            (IsValidEmail(itemEmail) && string.Equals(itemEmail, profileName, StringComparison.OrdinalIgnoreCase)))
                         {
                             return obj;
                         }
@@ -126,11 +233,51 @@ namespace AgVerse
         {
             try
             {
+                // Never persist placeholder strings like "Unknown email" as an account email
+                if (!IsValidEmail(email))
+                {
+                    string? fromJwt = TokenService.ExtractEmailFromJwt(idToken);
+                    if (IsValidEmail(fromJwt))
+                    {
+                        email = fromJwt!;
+                    }
+                    else if (!string.IsNullOrEmpty(rawBlob))
+                    {
+                        try
+                        {
+                            var node = JsonNode.Parse(rawBlob);
+                            string? fromBlob = node?["id_token_email"]?.ToString();
+                            if (!IsValidEmail(fromBlob)) fromBlob = TokenService.ExtractEmailFromJwt(node?["id_token"]?.ToString());
+                            if (IsValidEmail(fromBlob)) email = fromBlob!;
+                        }
+                        catch { }
+                    }
+                }
+
                 var vault = LoadVaultJson();
-                var existing = FindAccount(vault, email, label);
+                RepairPlaceholderEmails(vault);
+
+                // Match by valid email first; only fall back to label when repairing an account without a conflicting valid email
+                JsonObject? existing = IsValidEmail(email) ? FindAccount(vault, email, null) : null;
+                if (existing == null && !string.IsNullOrWhiteSpace(label))
+                {
+                    var byLabel = FindAccount(vault, null, label);
+                    if (byLabel != null)
+                    {
+                        string? existingEmail = byLabel["Email"]?.ToString();
+                        if (!IsValidEmail(existingEmail) || string.Equals(existingEmail, email, StringComparison.OrdinalIgnoreCase))
+                        {
+                            existing = byLabel;
+                        }
+                    }
+                }
 
                 if (existing != null)
                 {
+                    if (IsValidEmail(email) && !IsValidEmail(existing["Email"]?.ToString()))
+                    {
+                        existing["Email"] = email;
+                    }
                     existing["AccessToken"] = accessToken;
                     if (!string.IsNullOrEmpty(refreshToken)) existing["RefreshToken"] = refreshToken;
                     if (!string.IsNullOrEmpty(idToken)) existing["IdToken"] = idToken;
@@ -144,6 +291,12 @@ namespace AgVerse
                 }
                 else
                 {
+                    if (!IsValidEmail(email))
+                    {
+                        // Refuse to create a broken vault record with "Unknown email"
+                        return;
+                    }
+
                     var newAcc = new JsonObject
                     {
                         ["Id"] = Guid.NewGuid().ToString("N").Substring(0, 8),
@@ -189,7 +342,9 @@ namespace AgVerse
             {
                 if (item is JsonObject obj && obj["IsActive"]?.GetValue<bool>() == true)
                 {
-                    return obj["Email"]?.ToString();
+                    string? email = obj["Email"]?.ToString();
+                    if (IsValidEmail(email)) return email;
+                    return TryExtractEmailFromVaultItem(obj) ?? email;
                 }
             }
             return null;
@@ -197,20 +352,31 @@ namespace AgVerse
 
         public static bool IsProfileActiveInIde(string profileName, string profilePath)
         {
-            string? activeEmail = GetActiveAccountEmail();
-            if (string.IsNullOrEmpty(activeEmail)) return false;
+            var vault = LoadVaultJson();
+            JsonObject? activeObj = null;
+            foreach (var item in vault)
+            {
+                if (item is JsonObject obj && obj["IsActive"]?.GetValue<bool>() == true)
+                {
+                    activeObj = obj;
+                    break;
+                }
+            }
+            if (activeObj == null) return false;
 
-            // 1. Check profile's token email
+            string? activeEmail = activeObj["Email"]?.ToString();
+            if (!IsValidEmail(activeEmail)) activeEmail = TryExtractEmailFromVaultItem(activeObj);
+
+            // 1. Match by valid email from local profile token
             var (email, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
-            if (hasToken && string.Equals(email, activeEmail, StringComparison.OrdinalIgnoreCase))
+            if (hasToken && IsValidEmail(email) && IsValidEmail(activeEmail) &&
+                string.Equals(email, activeEmail, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            // 2. Check vault account label
-            var vault = LoadVaultJson();
-            var acc = FindAccount(vault, null, profileName);
-            if (acc != null && string.Equals(acc["Email"]?.ToString(), activeEmail, StringComparison.OrdinalIgnoreCase))
+            // 2. Match by profile label directly against the active vault record
+            if (string.Equals(activeObj["Label"]?.ToString(), profileName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -218,38 +384,89 @@ namespace AgVerse
             return false;
         }
 
-        public static bool SetActiveAccount(string emailOrProfileName)
+        public static bool SetActiveProfile(string profileName, string profilePath)
         {
             try
             {
+                SyncProfileTokenFromVault(profilePath, profileName);
+
+                var (email, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
+                string? validEmail = hasToken && IsValidEmail(email) ? email : null;
+
                 var vault = LoadVaultJson();
-                JsonObject? target = FindAccount(vault, emailOrProfileName, emailOrProfileName);
-                if (target == null) return false;
-
-                string targetEmail = target["Email"]?.ToString() ?? "";
-                foreach (var item in vault)
+                bool repaired = RepairPlaceholderEmails(vault);
+                JsonObject? target = FindAccount(vault, validEmail, profileName);
+                if (target == null)
                 {
-                    if (item is JsonObject obj)
-                    {
-                        obj["IsActive"] = string.Equals(obj["Email"]?.ToString(), targetEmail, StringComparison.OrdinalIgnoreCase);
-                    }
+                    if (repaired) SaveVaultJson(vault);
+                    return false;
                 }
 
-                SaveVaultJson(vault);
-
-                string? rawBlob = target["RawBlob"]?.ToString();
-                if (!string.IsNullOrEmpty(rawBlob))
-                {
-                    ActivateInIde(rawBlob);
-                }
-
-                TriggerRainmeterSync();
+                ActivateVaultObject(vault, target, profilePath);
                 return true;
             }
             catch
             {
                 return false;
             }
+        }
+
+        public static bool SetActiveAccount(string emailOrProfileName)
+        {
+            try
+            {
+                var vault = LoadVaultJson();
+                bool repaired = RepairPlaceholderEmails(vault);
+                JsonObject? target = FindAccount(vault, emailOrProfileName, emailOrProfileName);
+                if (target == null)
+                {
+                    if (repaired) SaveVaultJson(vault);
+                    return false;
+                }
+
+                string? label = target["Label"]?.ToString();
+                string? profPath = !string.IsNullOrEmpty(label)
+                    ? Path.Combine(AntigravityCore.ProfilesDir, label)
+                    : null;
+                ActivateVaultObject(vault, target, profPath);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void ActivateVaultObject(JsonArray vault, JsonObject target, string? profilePath)
+        {
+            string? targetEmail = target["Email"]?.ToString();
+            bool hasValidTargetEmail = IsValidEmail(targetEmail);
+            foreach (var item in vault)
+            {
+                if (item is JsonObject obj)
+                {
+                    obj["IsActive"] = ReferenceEquals(obj, target) ||
+                                      (hasValidTargetEmail && string.Equals(obj["Email"]?.ToString(), targetEmail, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            SaveVaultJson(vault);
+
+            string? rawBlob = target["RawBlob"]?.ToString();
+            if (string.IsNullOrEmpty(rawBlob) && !string.IsNullOrEmpty(profilePath))
+            {
+                string tokenFile = TokenService.GetTokenFilePath(profilePath);
+                if (File.Exists(tokenFile))
+                {
+                    try { rawBlob = File.ReadAllText(tokenFile); } catch { }
+                }
+            }
+            if (!string.IsNullOrEmpty(rawBlob))
+            {
+                ActivateInIde(rawBlob);
+            }
+
+            TriggerRainmeterSync();
         }
 
         public static void ActivateInIde(string rawBlob)
@@ -290,7 +507,7 @@ namespace AgVerse
             try
             {
                 // Safety: check if any OTHER profile directory on disk still uses this email
-                if (!string.IsNullOrEmpty(email) && Directory.Exists(AntigravityCore.ProfilesDir))
+                if (IsValidEmail(email) && Directory.Exists(AntigravityCore.ProfilesDir))
                 {
                     foreach (string profDir in Directory.GetDirectories(AntigravityCore.ProfilesDir))
                     {
@@ -298,7 +515,7 @@ namespace AgVerse
                         if (string.Equals(dirName, profileName, StringComparison.OrdinalIgnoreCase)) continue;
 
                         var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(profDir);
-                        if (hasToken && string.Equals(tEmail, email, StringComparison.OrdinalIgnoreCase))
+                        if (hasToken && IsValidEmail(tEmail) && string.Equals(tEmail, email, StringComparison.OrdinalIgnoreCase))
                         {
                             // Another profile still uses this email; don't remove from vault
                             return;
@@ -307,7 +524,7 @@ namespace AgVerse
                 }
 
                 var vault = LoadVaultJson();
-                JsonObject? target = FindAccount(vault, email, profileName);
+                JsonObject? target = FindAccount(vault, IsValidEmail(email) ? email : null, profileName);
                 if (target != null)
                 {
                     vault.Remove(target);
@@ -327,7 +544,7 @@ namespace AgVerse
                 if (Directory.Exists(newProfilePath))
                 {
                     var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(newProfilePath);
-                    if (hasToken) email = tEmail;
+                    if (hasToken && IsValidEmail(tEmail)) email = tEmail;
                 }
 
                 JsonObject? acc = FindAccount(vault, email, oldProfileName);
@@ -337,6 +554,43 @@ namespace AgVerse
                     SaveVaultJson(vault);
                     TriggerRainmeterSync();
                 }
+            }
+            catch { }
+        }
+
+        private static void TrySyncLocalTokenToVault(string tokenFile, string profileName, string? emailHint)
+        {
+            if (!File.Exists(tokenFile)) return;
+
+            try
+            {
+                string localRaw = File.ReadAllText(tokenFile);
+                var localRoot = JsonNode.Parse(localRaw);
+                string accessToken = localRoot?["token"]?["access_token"]?.ToString() ?? "";
+                if (string.IsNullOrEmpty(accessToken)) return;
+
+                string refreshToken = localRoot?["token"]?["refresh_token"]?.ToString() ?? "";
+                string idToken = localRoot?["id_token"]?.ToString() ?? "";
+                string expiryStr = localRoot?["token"]?["expiry"]?.ToString() ?? "";
+
+                string? resolvedEmail = IsValidEmail(emailHint) ? emailHint : null;
+                if (!IsValidEmail(resolvedEmail))
+                {
+                    string? blobEmail = localRoot?["id_token_email"]?.ToString();
+                    resolvedEmail = IsValidEmail(blobEmail)
+                        ? blobEmail
+                        : TokenService.ExtractEmailFromJwt(idToken);
+                }
+
+                if (!IsValidEmail(resolvedEmail)) return;
+
+                long expUnix = 0;
+                if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
+                {
+                    expUnix = localOffset.ToUnixTimeSeconds();
+                }
+
+                UpdateOrAddAccount(resolvedEmail!, profileName, accessToken, refreshToken, idToken, expUnix, localRaw);
             }
             catch { }
         }
@@ -352,36 +606,26 @@ namespace AgVerse
                 if (File.Exists(tokenFile))
                 {
                     var (email, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
-                    if (hasToken) currentEmail = email;
+                    if (hasToken && IsValidEmail(email)) currentEmail = email;
                 }
 
                 JsonObject? acc = FindAccount(vault, currentEmail, profileName);
                 if (acc == null)
                 {
                     // Profile has a token locally that is not in vault -> import to vault so Rainmeter sees it
-                    if (File.Exists(tokenFile) && !string.IsNullOrEmpty(currentEmail))
-                    {
-                        try
-                        {
-                            string localRaw = File.ReadAllText(tokenFile);
-                            var localRoot = JsonNode.Parse(localRaw);
-                            string accessToken = localRoot?["token"]?["access_token"]?.ToString() ?? "";
-                            string refreshToken = localRoot?["token"]?["refresh_token"]?.ToString() ?? "";
-                            string idToken = localRoot?["id_token"]?.ToString() ?? "";
-                            string expiryStr = localRoot?["token"]?["expiry"]?.ToString() ?? "";
-                            long expUnix = 0;
-                            if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
-                            {
-                                expUnix = localOffset.ToUnixTimeSeconds();
-                            }
-                            if (!string.IsNullOrEmpty(accessToken))
-                            {
-                                UpdateOrAddAccount(currentEmail, profileName, accessToken, refreshToken, idToken, expUnix, localRaw);
-                            }
-                        }
-                        catch { }
-                    }
+                    TrySyncLocalTokenToVault(tokenFile, profileName, currentEmail);
                     return;
+                }
+
+                if (!IsValidEmail(acc["Email"]?.ToString()))
+                {
+                    string? repairedEmail = IsValidEmail(currentEmail) ? currentEmail : TryExtractEmailFromVaultItem(acc);
+                    if (IsValidEmail(repairedEmail))
+                    {
+                        acc["Email"] = repairedEmail;
+                        SaveVaultJson(vault);
+                        currentEmail ??= repairedEmail;
+                    }
                 }
 
                 string? rawBlob = acc["RawBlob"]?.ToString();
@@ -431,25 +675,8 @@ namespace AgVerse
                 }
                 else if (shouldUpdateVault)
                 {
-                    try
-                    {
-                        string localRaw = File.ReadAllText(tokenFile);
-                        var localRoot = JsonNode.Parse(localRaw);
-                        string accessToken = localRoot?["token"]?["access_token"]?.ToString() ?? "";
-                        string refreshToken = localRoot?["token"]?["refresh_token"]?.ToString() ?? "";
-                        string idToken = localRoot?["id_token"]?.ToString() ?? "";
-                        string expiryStr = localRoot?["token"]?["expiry"]?.ToString() ?? "";
-                        long expUnix = 0;
-                        if (DateTimeOffset.TryParse(expiryStr, out var localOffset))
-                        {
-                            expUnix = localOffset.ToUnixTimeSeconds();
-                        }
-                        if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(currentEmail))
-                        {
-                            UpdateOrAddAccount(currentEmail, profileName, accessToken, refreshToken, idToken, expUnix, localRaw);
-                        }
-                    }
-                    catch { }
+                    string? emailHint = IsValidEmail(currentEmail) ? currentEmail : TryExtractEmailFromVaultItem(acc);
+                    TrySyncLocalTokenToVault(tokenFile, profileName, emailHint);
                 }
             }
             catch { }
@@ -462,7 +689,11 @@ namespace AgVerse
                 RegisterProfilesDir(AntigravityCore.ProfilesDir);
                 if (!Directory.Exists(AntigravityCore.ProfilesDir)) return;
 
-                var vault = LoadVaultJson();
+                var initialVault = LoadVaultJson();
+                if (RepairPlaceholderEmails(initialVault))
+                {
+                    SaveVaultJson(initialVault);
+                }
 
                 // 1. Sync any existing profile tokens with vault
                 foreach (string profDir in Directory.GetDirectories(AntigravityCore.ProfilesDir))
@@ -471,9 +702,8 @@ namespace AgVerse
                     SyncProfileTokenFromVault(profDir, profName);
                 }
 
-                // 2. Check if vault has accounts that do not have a profile directory yet.
-                // If so, provision the profile so both applications have the same account list!
-                bool vaultChanged = false;
+                // 2. Reload vault after step 1 updates, then provision any vault accounts missing a profile directory.
+                var vault = LoadVaultJson();
                 var existingDirs = Directory.GetDirectories(AntigravityCore.ProfilesDir)
                     .Select(d => Path.GetFileName(d) ?? "")
                     .Where(n => n.Length > 0)
@@ -482,11 +712,12 @@ namespace AgVerse
                 foreach (var item in vault)
                 {
                     if (item is not JsonObject acc) continue;
-                    string email = acc["Email"]?.ToString() ?? "";
+                    string? resolvedEmail = TryExtractEmailFromVaultItem(acc);
+                    string email = IsValidEmail(resolvedEmail) ? resolvedEmail! : (acc["Email"]?.ToString() ?? "");
                     string label = acc["Label"]?.ToString() ?? "";
                     string? rawBlob = acc["RawBlob"]?.ToString();
 
-                    if (string.IsNullOrEmpty(email)) continue;
+                    if (!IsValidEmail(email)) continue;
 
                     // Does any directory match email or label?
                     bool found = false;
@@ -504,7 +735,7 @@ namespace AgVerse
                         if (File.Exists(tf))
                         {
                             var (tEmail, hasToken, _, _) = TokenService.GetTokenSummary(Path.Combine(AntigravityCore.ProfilesDir, dirName));
-                            if (hasToken && string.Equals(tEmail, email, StringComparison.OrdinalIgnoreCase))
+                            if (hasToken && IsValidEmail(tEmail) && string.Equals(tEmail, email, StringComparison.OrdinalIgnoreCase))
                             {
                                 found = true;
                                 break;
@@ -535,11 +766,6 @@ namespace AgVerse
                         }
                         catch { }
                     }
-                }
-
-                if (vaultChanged)
-                {
-                    SaveVaultJson(vault);
                 }
             }
             catch { }

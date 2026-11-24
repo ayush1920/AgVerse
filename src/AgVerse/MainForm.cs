@@ -865,9 +865,7 @@ namespace AgVerse
             }
 
             string profilePath = Path.Combine(AntigravityCore.ProfilesDir, name);
-            var (email, hasToken, _, _) = TokenService.GetTokenSummary(profilePath);
-
-            bool success = VaultBridge.SetActiveAccount(hasToken && !string.IsNullOrEmpty(email) ? email : name);
+            bool success = VaultBridge.SetActiveProfile(name, profilePath);
             if (success)
             {
                 LoadProfiles();
