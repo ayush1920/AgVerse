@@ -43,7 +43,7 @@ namespace AgVerse
         /// <summary>
         /// Fallback email lookup when Google OAuth responses omit an id_token.
         /// </summary>
-        private static async Task<string?> FetchEmailFromUserInfoAsync(string accessToken)
+        internal static async Task<string?> FetchEmailFromUserInfoAsync(string accessToken)
         {
             if (string.IsNullOrWhiteSpace(accessToken)) return null;
             try

@@ -31,6 +31,8 @@ namespace AgVerse
         private Button _btnRefreshToken = null!;
         private Button _btnShortcut = null!;
         private Button _btnDelete = null!;
+        private Button _btnExportToken = null!;
+        private Button _btnImportToken = null!;
         private CheckBox _chkVerbose = null!;
         private readonly ToolTip _toolTip = new();
         private DateTime _lastAutoSyncUtc = DateTime.UtcNow;
@@ -78,8 +80,8 @@ namespace AgVerse
 
         private void InitializeComponent()
         {
-            Size = new Size(Dpi(580), Dpi(660));
-            MinimumSize = new Size(Dpi(520), Dpi(520));
+            Size = new Size(Dpi(580), Dpi(700));
+            MinimumSize = new Size(Dpi(520), Dpi(560));
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -474,12 +476,13 @@ namespace AgVerse
                 Dock = DockStyle.Fill,
                 AutoSize = true,
                 ColumnCount = 2,
-                RowCount = 3,
+                RowCount = 4,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             btnGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             btnGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -540,7 +543,7 @@ namespace AgVerse
                 Color.FromArgb(208, 215, 222),
                 Color.FromArgb(243, 244, 246),
                 bold: false,
-                margin: new Padding(0, 0, colGap, 0));
+                margin: new Padding(0, 0, colGap, rowGap));
             _btnShortcut.Click += OnCreateShortcutClick;
 
             _btnDelete = CreateUniformButton(
@@ -551,8 +554,32 @@ namespace AgVerse
                 Color.FromArgb(238, 195, 200),
                 Color.FromArgb(255, 240, 242),
                 bold: false,
-                margin: new Padding(colGap, 0, 0, 0));
+                margin: new Padding(colGap, 0, 0, rowGap));
             _btnDelete.Click += OnDeleteProfileClick;
+
+            _btnExportToken = CreateUniformButton(
+                "↑ " + Localization.T("btn_export_token"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(31, 35, 40),
+                Color.FromArgb(208, 215, 222),
+                Color.FromArgb(243, 244, 246),
+                bold: false,
+                margin: new Padding(0, 0, colGap, 0));
+            _btnExportToken.Click += OnExportTokenClick;
+            _toolTip.SetToolTip(_btnExportToken, "Export selected profile, all profiles, or default IDE session token to JSON");
+
+            _btnImportToken = CreateUniformButton(
+                "↓ " + Localization.T("btn_import_token"),
+                btnHeight,
+                Color.White,
+                Color.FromArgb(16, 124, 65),
+                Color.FromArgb(160, 210, 175),
+                Color.FromArgb(240, 250, 244),
+                bold: false,
+                margin: new Padding(colGap, 0, 0, 0));
+            _btnImportToken.Click += OnImportTokenClick;
+            _toolTip.SetToolTip(_btnImportToken, "Import session token JSON to skip browser login (deduplicates by email)");
 
             btnGrid.Controls.Add(_btnLaunch, 0, 0);
             btnGrid.Controls.Add(_btnSetDefault, 1, 0);
@@ -560,6 +587,8 @@ namespace AgVerse
             btnGrid.Controls.Add(_btnRefreshToken, 1, 1);
             btnGrid.Controls.Add(_btnShortcut, 0, 2);
             btnGrid.Controls.Add(_btnDelete, 1, 2);
+            btnGrid.Controls.Add(_btnExportToken, 0, 3);
+            btnGrid.Controls.Add(_btnImportToken, 1, 3);
 
             bottomPanel.Controls.Add(_chkVerbose, 0, 0);
             bottomPanel.Controls.Add(btnGrid, 0, 1);
@@ -807,6 +836,8 @@ namespace AgVerse
             _btnRefreshToken.Text = "↻ " + Localization.T("btn_refresh_token");
             _btnShortcut.Text = Localization.T("btn_atalho");
             _btnDelete.Text = Localization.T("btn_del");
+            _btnExportToken.Text = "↑ " + Localization.T("btn_export_token");
+            _btnImportToken.Text = "↓ " + Localization.T("btn_import_token");
         }
 
         private void OnFormActivated()
@@ -1102,6 +1133,203 @@ namespace AgVerse
                 {
                     MessageBox.Show(this, "Failed to delete profile: " + ex.Message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
+            }
+        }
+
+        private void OnExportTokenClick(object? sender, EventArgs e)
+        {
+            string? selectedName = GetSelectedProfileName();
+            bool selectedHasToken = false;
+            if (!string.IsNullOrEmpty(selectedName))
+            {
+                string profPath = Path.Combine(AntigravityCore.ProfilesDir, selectedName);
+                var (_, hasTok, _, _) = TokenService.GetTokenSummary(profPath);
+                selectedHasToken = hasTok;
+            }
+
+            int exportableCount = SessionTokenTransfer.CountExportableProfiles();
+            bool hasDefaultIdeToken = SessionTokenTransfer.HasDefaultIdeToken();
+
+            if (!selectedHasToken && exportableCount == 0 && !hasDefaultIdeToken)
+            {
+                MessageBox.Show(
+                    this,
+                    "No signed-in session tokens were found to export. Sign in or refresh a profile token first.",
+                    Localization.T("t_aviso"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var menu = new ContextMenuStrip();
+
+            if (!string.IsNullOrEmpty(selectedName))
+            {
+                var itemSelected = new ToolStripMenuItem($"Export Selected Profile ('{selectedName}')")
+                {
+                    Enabled = selectedHasToken
+                };
+                itemSelected.Click += (_, _) =>
+                    RunTokenExportWithDialog(
+                        $"AgVerse-Token-{selectedName}.json",
+                        $"Export Session Token - {selectedName}",
+                        path => SessionTokenTransfer.ExportSingleProfile(selectedName, path));
+                menu.Items.Add(itemSelected);
+            }
+
+            var itemAll = new ToolStripMenuItem($"Export All Signed-in Profiles ({exportableCount})")
+            {
+                Enabled = exportableCount > 0 || hasDefaultIdeToken
+            };
+            itemAll.Click += (_, _) =>
+                RunTokenExportWithDialog(
+                    $"AgVerse-Tokens-All-{DateTime.Now:yyyyMMdd}.json",
+                    "Export All Session Tokens - AgVerse",
+                    SessionTokenTransfer.ExportAllProfiles);
+            menu.Items.Add(itemAll);
+
+            if (hasDefaultIdeToken)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+                var itemDefaultIde = new ToolStripMenuItem("Export Default IDE Token (~/.gemini)");
+                itemDefaultIde.Click += (_, _) =>
+                    RunTokenExportWithDialog(
+                        "AgVerse-Token-Default-IDE.json",
+                        "Export Default IDE Session Token - AgVerse",
+                        SessionTokenTransfer.ExportDefaultIdeToken);
+                menu.Items.Add(itemDefaultIde);
+            }
+
+            menu.Closed += (_, _) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(_btnExportToken, new Point(0, _btnExportToken.Height));
+        }
+
+        private void RunTokenExportWithDialog(
+            string defaultFileName,
+            string title,
+            Func<string, (bool Success, string Message, int ExportedCount)> exporter)
+        {
+            _isModalOpen = true;
+            try
+            {
+                using var dlg = new SaveFileDialog
+                {
+                    Title = title,
+                    Filter = "AgVerse Token Files (*.json)|*.json|All Files (*.*)|*.*",
+                    DefaultExt = "json",
+                    FileName = defaultFileName,
+                    OverwritePrompt = true
+                };
+
+                if (dlg.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dlg.FileName))
+                {
+                    return;
+                }
+
+                var (success, message, _) = exporter(dlg.FileName);
+                if (success)
+                {
+                    MessageBox.Show(
+                        this,
+                        $"{message}\n\nSaved to:\n{dlg.FileName}\n\nNote: This file contains OAuth session credentials — keep it private.",
+                        Localization.T("t_sucesso"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show(this, message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            finally
+            {
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                _isModalOpen = false;
+            }
+        }
+
+        private async void OnImportTokenClick(object? sender, EventArgs e)
+        {
+            string? selectedFile = null;
+            _isModalOpen = true;
+            try
+            {
+                using var dlg = new OpenFileDialog
+                {
+                    Title = "Import Session Token(s) - AgVerse",
+                    Filter = "AgVerse Token Files (*.json)|*.json|All Files (*.*)|*.*",
+                    CheckFileExists = true
+                };
+
+                if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dlg.FileName))
+                {
+                    selectedFile = dlg.FileName;
+                }
+            }
+            finally
+            {
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                _isModalOpen = false;
+            }
+
+            if (string.IsNullOrEmpty(selectedFile)) return;
+
+            _btnImportToken.Enabled = false;
+            string origText = _btnImportToken.Text;
+            _btnImportToken.Text = "↓ Importing...";
+            _isModalOpen = true;
+
+            try
+            {
+                var result = await SessionTokenTransfer.ImportFromFileAsync(
+                    selectedFile,
+                    autoRefreshExpired: true,
+                    activateDefaultIfNone: true);
+
+                string? focusProfile = result.ActivatedDefaultProfile
+                    ?? result.Outcomes.FirstOrDefault(o => o.Action != ImportedProfileAction.SkippedInvalid)?.ProfileName;
+                LoadProfiles(focusProfile);
+                UpdateSelectedProfileTokenInfo();
+
+                MessageBox.Show(
+                    this,
+                    result.Message,
+                    result.Success ? Localization.T("t_sucesso") : Localization.T("t_erro"),
+                    MessageBoxButtons.OK,
+                    result.Success ? MessageBoxIcon.Information : MessageBoxIcon.Error);
+
+                if (result.Success && !string.IsNullOrEmpty(result.SuggestedDefaultProfile))
+                {
+                    string targetName = result.SuggestedDefaultProfile;
+                    var askDefault = MessageBox.Show(
+                        this,
+                        $"Would you like to set '{targetName}' as the Default (IDE Active) profile so default Antigravity also skips login?",
+                        "Set Default Profile - AgVerse",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (askDefault == DialogResult.Yes)
+                    {
+                        string targetPath = Path.Combine(AntigravityCore.ProfilesDir, targetName);
+                        if (VaultBridge.SetActiveProfile(targetName, targetPath))
+                        {
+                            LoadProfiles(targetName);
+                            UpdateSelectedProfileTokenInfo();
+                            MessageBox.Show(this, Localization.T("msg_default_set", targetName), Localization.T("t_sucesso"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Error importing token(s): " + ex.Message, Localization.T("t_erro"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _btnImportToken.Enabled = true;
+                _btnImportToken.Text = origText;
+                _lastAutoSyncUtc = DateTime.UtcNow;
+                _isModalOpen = false;
             }
         }
     }
