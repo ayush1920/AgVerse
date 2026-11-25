@@ -7,7 +7,7 @@
 #endif
 
 #define MyAppName "AgVerse"
-#define MyAppVersion "2.0.5"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Ayush"
 #define MyAppURL "https://github.com/ayush1920/AgVerse"
 #define MyAppExeName "AgVerse.exe"
